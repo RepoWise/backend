@@ -1,0 +1,1628 @@
+[
+    {
+        "ReACT-ID": "ReACT-1",
+        "ReACT_title": "Ensure a team of friendly and supportive developers.",
+        "Entity_responsible": "Project Maintainers, Project Leaders, Community Managers",
+        "Features": "st_num_dev, t_num_dev_nodes, s_num_nodes, s_avg_clustering_coef, s_weighted_mean_degree",
+        "References": 3,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            },
+            {
+                "title": "Why Do People Give Up FLOSSing? A Study of Contributor Disengagement in Open Source",
+                "doi": "https://doi.org/10.1007/978-3-030-20883-7_11"
+            },
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 5
+    },
+    {
+        "ReACT-ID": "ReACT-2",
+        "ReACT_title": "Include the new members in the project, leveraging their prior experience.",
+        "Entity_responsible": "Project Maintainers, Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-3",
+        "ReACT_title": "Utilize a common programming language",
+        "Entity_responsible": "Project Maintainers, Project Leaders, Project Maintainers, Project Leaders",
+        "Features": "st_num_dev, st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 3,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            },
+            {
+                "title": "What Attracts Newcomers to Onboard on OSS Projects? TL;DR: Popularity",
+                "doi": "https://doi.org/10.1007/978-3-030-20883-7_9"
+            },
+            {
+                "title": "Turnover in Open-Source Projects: The Case of Core Developers",
+                "doi": "https://dl.acm.org/doi/10.1145/3422392.3422433"
+            }
+        ],
+        "Importance": 6
+    },
+    {
+        "ReACT-ID": "ReACT-4",
+        "ReACT_title": "Leverage widely-accepted software engineering principles.",
+        "Entity_responsible": "Project Maintainers, Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-5",
+        "ReACT_title": "Utilize a pull-based development approach.",
+        "Entity_responsible": "Developers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-6",
+        "ReACT_title": "Maintaining Continuous Integration",
+        "Entity_responsible": "Project Leaders, Core Developers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-7",
+        "ReACT_title": "Maintain well-designed code.",
+        "Entity_responsible": "Project Leaders, Developers, Contributors",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-8",
+        "ReACT_title": "Engage in code revision/Perform frequent code reviews.",
+        "Entity_responsible": "Project Leaders, Core Developers,\n Contributors, Developers, Code Reviewers, Project Maintainers",
+        "Features": "st_num_dev, st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 2,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 6
+    },
+    {
+        "ReACT-ID": "ReACT-9",
+        "ReACT_title": "Grant newcomer access to the main repository.",
+        "Entity_responsible": "Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-10",
+        "ReACT_title": "Offer job support to the newcomer.",
+        "Entity_responsible": "Project Managers, Owners",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870181"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-11",
+        "ReACT_title": "Keep the project small and simple.",
+        "Entity_responsible": "Core Developers, Core Developers",
+        "Features": "st_num_dev, st_num_dev, t_num_dev_nodes, ",
+        "References": 3,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870188"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            },
+            {
+                "title": "Toward an understanding of the motivation of open source software developers",
+                "doi": "https://doi.org/10.1109/ICSE.2003.1201220"
+            }
+        ],
+        "Importance": 4
+    },
+    {
+        "ReACT-ID": "ReACT-12",
+        "ReACT_title": "Incorporate an open-source license.",
+        "Entity_responsible": "Sponsors, Sponsors",
+        "Features": "st_num_dev, st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 2,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870189"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 4
+    },
+    {
+        "ReACT-ID": "ReACT-13",
+        "ReACT_title": "Provide rewards to the contributors",
+        "Entity_responsible": "Sponsors",
+        "Features": "st_num_dev",
+        "References": 4,
+        "articles": [
+            {
+                "title": "On the abandonment and survival of open source projects: An empirical investigation",
+                "doi": "https://doi.org/10.1109/ESEM.2019.8870190"
+            },
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-83"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.31958484"
+            },
+            {
+                "title": "The shifting sands of motivation: Revisiting what drives contributors in open source",
+                "doi": "https://ieeexplore.ieee.org/document/9402044"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-14",
+        "ReACT_title": "Merge pull requests promptly.",
+        "Entity_responsible": "Developers, Project Maintainers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "What Attracts Newcomers to Onboard on OSS Projects? TL;DR: Popularity",
+                "doi": "https://doi.org/10.1007/978-3-030-20883-7_9"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-15",
+        "ReACT_title": "Expand the range of programming languages in use.",
+        "Entity_responsible": "Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "What Attracts Newcomers to Onboard on OSS Projects? TL;DR: Popularity",
+                "doi": "https://doi.org/10.1007/978-3-030-20883-7_9"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-16",
+        "ReACT_title": "Expand the number of integrators (contributors with rights to merge pull requests)",
+        "Entity_responsible": "Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "What Attracts Newcomers to Onboard on OSS Projects? TL;DR: Popularity",
+                "doi": "https://doi.org/10.1007/978-3-030-20883-7_9"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-17",
+        "ReACT_title": "Encourage mentors to collaborate with mentees on addressing bugs or issues.",
+        "Entity_responsible": "Mentors, Core Developers",
+        "Features": "t_num_dev_nodes, s_num_nodes, s_avg_clustering_coef, s_weighted_mean_degree",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            }
+        ],
+        "Importance": 4
+    },
+    {
+        "ReACT-ID": "ReACT-18",
+        "ReACT_title": "Holding training sessions for newcomers",
+        "Entity_responsible": "Mentors, Project Maintainers, Project Leaders",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            },
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-19",
+        "ReACT_title": "Flag newcomers to ensure a welcoming environment for them.",
+        "Entity_responsible": "Community Moderators, Project Maintainers, Project Leaders",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            },
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-20",
+        "ReACT_title": "Communicate through various channels or mediums.",
+        "Entity_responsible": "Community Managers, Project Maintainers, Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            },
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-21",
+        "ReACT_title": "Assign newcomers small and interesting tasks.",
+        "Entity_responsible": "Mentors, Project Maintainers, Project Leaders",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            },
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-22",
+        "ReACT_title": "Encourage newcomers to share their work for increased exposure.",
+        "Entity_responsible": "Community Managers, Project Maintainers, Project Leaders",
+        "Features": "s_num_nodes, s_avg_clustering_coef, s_weighted_mean_degree, s_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            }
+        ],
+        "Importance": 4
+    },
+    {
+        "ReACT-ID": "ReACT-23",
+        "ReACT_title": "Tag tasks based on their complexity level.",
+        "Entity_responsible": "Project Maintainers, Developers",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-24",
+        "ReACT_title": "Establish local groups in each country.",
+        "Entity_responsible": "Community Managers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-25",
+        "ReACT_title": "Maintain concise, updated, accessible documentation.",
+        "Entity_responsible": "Project Maintainers, Documentation Team, Contributors, Project Maintainers, Documentation Team, Contributors",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density, st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            },
+            {
+                "title": "Newcomers\u2019 Barriers. . . Is That All? An Analysis of Mentors\u2019 and Newcomers\u2019 Barriers in OSS Projects",
+                "doi": "https://doi.org/10.1007/s10606-018-9310-8"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 6
+    },
+    {
+        "ReACT-ID": "ReACT-26",
+        "ReACT_title": "Conduct unit tests.",
+        "Entity_responsible": "Developers, Quality Assurance Team, Contributors",
+        "Features": "st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-27",
+        "ReACT_title": "As a newcomer, explain what you've tried when asking for help, and use the provided template.\n\nHello,\nMy name is [your name]\nand I am a newcomer trying to\nplace my first code contribution to Amarok. I am facing\nproblems [during my first steps/finding a task/setting up my\nworkspace]. Can someone help\nme [clarifying some questions/\nmentoring me]?\nI have already [mention the\nthings you have done already to\ntry to solve your problem] [If you are getting an error, include it in\nthe message].\n[Mention the OS you are\nworking on and the tools you\nare using].\nThanks in advance.\n[Your signature]",
+        "Entity_responsible": "Developers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-28",
+        "ReACT_title": "Maintain a well-structured design.",
+        "Entity_responsible": "Architects, Design Team, Developers",
+        "Features": "st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-29",
+        "ReACT_title": "Document the code structure: Clearly document the way that the code is organized, and how the components, modules, classes, packages relate to each other. A thorough documentation about the structure and relationship among its modules can make it easier for the new developers to understand the code and find the artifacts they need.",
+        "Entity_responsible": "Technical Leads, Architects, Documentation Team\n",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-30",
+        "ReACT_title": "Implement continuous code integration.",
+        "Entity_responsible": "Architects",
+        "Features": "st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "details": "In Proceedings of the 11th International Workshop on Cooperative and Human Aspects of Software Engineering (CHASE '18). Association for Computing Machinery, New York, NY, USA, 114\u2013121.",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-31",
+        "ReACT_title": "Offer coding guidelines.",
+        "Entity_responsible": "Developers, Technical Leads, Project Maintainers",
+        "Features": "st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "details": "In Proceedings of the 11th International Workshop on Cooperative and Human Aspects of Software Engineering (CHASE '18). Association for Computing Machinery, New York, NY, USA, 114\u2013121.",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-32",
+        "ReACT_title": "Promote code transparency/ Keep the code as simple as possible: Code is supposed to be read by humans. Refactor the code constantly to make it more readable. The source code is the set of artifacts that need to be understood and changed by the members to contribute. Sometimes it is not easy to make it simple because the core of a large application is inherently complex, and the code reflects this complexity. However, directing newcomers to peripheral modules (at least warning them of the complexity) would benefit newcomers during their first steps.",
+        "Entity_responsible": "Project Maintainers, Community Managers, Developers, Project Maintainers, Community Managers, Developers",
+        "Features": "st_num_dev, t_num_dev_nodes, t_net_overlap, t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "details": "In Proceedings of the 11th International Workshop on Cooperative and Human Aspects of Software Engineering (CHASE '18). Association for Computing Machinery, New York, NY, USA, 114\u2013121.",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            },
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "details": "In XVI International Free Software Workshop 2015.",
+                "url": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            }
+        ],
+        "Importance": 6
+    },
+    {
+        "ReACT-ID": "ReACT-33",
+        "ReACT_title": "Provide clear and detailed contribution guidelines",
+        "Entity_responsible": "Project Maintainers, Community Managers, Contributors, Project Maintainers, Community Managers, Contributors",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density, st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "details": "In Proceedings of the 11th International Workshop on Cooperative and Human Aspects of Software Engineering (CHASE '18). Association for Computing Machinery, New York, NY, USA, 114\u2013121.",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            },
+            {
+                "title": "Do CONTRIBUTING Files Provide Information about OSS Newcomers\u2019 Onboarding Barriers?",
+                "details": "In Proceedings of the 31st ACM Joint European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE 2023). Association for Computing Machinery, New York, NY, USA, 16\u201328.",
+                "doi": "https://doi.org/10.1145/3611643.3616288"
+            }
+        ],
+        "Importance": 6
+    },
+    {
+        "ReACT-ID": "ReACT-34",
+        "ReACT_title": "Maintain a roster of available project leaders.",
+        "Entity_responsible": "Project Maintainers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "details": "In Proceedings of the 11th International Workshop on Cooperative and Human Aspects of Software Engineering (CHASE '18). Association for Computing Machinery, New York, NY, USA, 114\u2013121.",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-35",
+        "ReACT_title": "Maintain an open and meritocratic culture",
+        "Entity_responsible": "Project Maintainers, Community Managers, Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "details": "In Proceedings of the 11th International Workshop on Cooperative and Human Aspects of Software Engineering (CHASE '18). Association for Computing Machinery, New York, NY, USA, 114\u2013121.",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-36",
+        "ReACT_title": "Maintain a small number of core/active developers.",
+        "Entity_responsible": "Project Maintainers, Technical Leads, Community Managers, Project Maintainers, Technical Leads, Community Managers, Project Maintainers, Technical Leads, Community Managers",
+        "Features": "st_num_dev, st_num_dev, st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 3,
+        "articles": [
+            {
+                "title": "Inequalities in open source software development: Analysis of contributor\u2019s commits in apache software foundation projects",
+                "doi": "https://doi.org/10.1371/journal.pone.0152976"
+            },
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            },
+            {
+                "title": "Turnover in Open-Source Projects: The Case of Core Developers",
+                "doi": "https://dl.acm.org/doi/10.1145/3422392.3422433"
+            }
+        ],
+        "Importance": 7
+    },
+    {
+        "ReACT-ID": "ReACT-37",
+        "ReACT_title": "Minimize conflicts among developers.",
+        "Entity_responsible": "Project Maintainers, Project Leaders",
+        "Features": "st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 5
+    },
+    {
+        "ReACT-ID": "ReACT-38",
+        "ReACT_title": "Foster contributions from experienced contributors.",
+        "Entity_responsible": "Project Maintainers, Community Managers",
+        "Features": "st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 5
+    },
+    {
+        "ReACT-ID": "ReACT-39",
+        "ReACT_title": "Manage financial support from a company\n",
+        "Entity_responsible": "Architects",
+        "Features": "st_num_dev, t_num_dev_nodes, t_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why we engage in FLOSS: answers from core developers",
+                "doi": "https://doi.org/10.1145/3195836.3195848"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-40",
+        "ReACT_title": "Maintain a shared repository: Ensure that pairs access and manipulate files from the same repository.",
+        "Entity_responsible": "Project Maintainers, Collaboration Coordinators",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Systematic Literature Review",
+                "doi": "https://doi.org/10.1016/j.infsof.2015.02.011"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-41",
+        "ReACT_title": "Utilize a distributed pair programming tool that supports defined roles between the pairs.",
+        "Entity_responsible": "Project Maintainers, Collaboration Coordinators",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Systematic Literature Review",
+                "doi": "https://doi.org/10.1016/j.infsof.2015.02.011"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-42",
+        "ReACT_title": "Encourage developers to utilize tools that support synchronous editing of source code.",
+        "Entity_responsible": "Project Maintainers, Collaboration Coordinators",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-43",
+        "ReACT_title": "Utilize an editing tool that supports the options of compiling and executing the source code. Ensure it notifies users of any error messages reported by the compiler.",
+        "Entity_responsible": "Project Maintainers, Collaboration Coordinators",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-44",
+        "ReACT_title": "Store the source code files in web repositories to ensure accessibility for all members of the development team.",
+        "Entity_responsible": "Project Maintainers, Collaboration Coordinators",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-45",
+        "ReACT_title": "Control access to documents being edited at the repository. Implement mechanisms to request and obtain shared resources.",
+        "Entity_responsible": "Project Maintainers, Collaboration Coordinators, Project Leaders",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-46",
+        "ReACT_title": "Utilize a communication channel that supports both text and audio-based communication.",
+        "Entity_responsible": "Community Managers, Project Maintainers",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-47",
+        "ReACT_title": "Pair individuals with comparable experience and capabilities.",
+        "Entity_responsible": "Project Managers, Project Leaders",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-48",
+        "ReACT_title": "Schedule regular brainstorming sessions to establish a shared vision for the project.",
+        "Entity_responsible": "Project Managers, Project Leaders",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-49",
+        "ReACT_title": "make a group of developers to work together in multiple projects",
+        "Entity_responsible": "Project Managers, Project Leaders, Community Managers",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Distributed Pair Programming: A Survey",
+                "doi": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=3728922d403a967a1a3c09a1d8be5e864846faa7"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-50",
+        "ReACT_title": "Shift project ownership to users instead of the organization to mitigate higher turnover rates among core developers.",
+        "Entity_responsible": "Project Maintainers",
+        "Features": "st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Turnover in Open-Source Projects: The Case of Core Developers",
+                "doi": "https://dl.acm.org/doi/10.1145/3422392.3422433"
+            }
+        ],
+        "Importance": 5
+    },
+    {
+        "ReACT-ID": "ReACT-51",
+        "ReACT_title": "Shorten the project timeline to mitigate the impact of increasing Core Developer Turnover rates as the project ages.",
+        "Entity_responsible": "Project Managers, Project Leaders, Developers",
+        "Features": "st_num_dev, t_num_dev_nodes, s_num_nodes, s_net_overlap, s_net_overlap",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Turnover in Open-Source Projects: The Case of Core Developers",
+                "doi": "https://dl.acm.org/doi/10.1145/3422392.3422433"
+            }
+        ],
+        "Importance": 5
+    },
+    {
+        "ReACT-ID": "ReACT-52",
+        "ReACT_title": "Encourage developers to perform Reengineering, Forward Engineering and Corrective Engineering Activities",
+        "Entity_responsible": "Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Inside Commits: An Empirical Study on Commits in Open-Source Software",
+                "doi": "https://doi.org/10.1145/3474624.3474629"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-53",
+        "ReACT_title": "Have the project incubated by large software foundation",
+        "Entity_responsible": "Owners",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Free and Open Source Software organizations: A large-scale analysis of code, comments, and commits frequency",
+                "doi": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0257192"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-54",
+        "ReACT_title": "Maintain a diverse group with members from various continents",
+        "Entity_responsible": "Project Leaders, Community Managers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Sentiment analysis of commit comments in GitHub: an empirical study",
+                "doi": "https://doi.org/10.1145/2597073.2597118"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-55",
+        "ReACT_title": "Encourage developers to enhance existing features, while reducing the workload of the developers",
+        "Entity_responsible": "Project Leaders",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "A large-scale empirical exploration on refactoring activities in open source software projects",
+                "doi": "https://doi.org/10.1016/j.scico.2019.05.002"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-56",
+        "ReACT_title": "Developers at the center of open-source software (OSS) communities should prioritize the creation and maintenance of a dynamic and self-reproducing OSS community.",
+        "Entity_responsible": "Collaboration Coordinators",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Toward an understanding of the motivation of open source software developers",
+                "doi": "https://doi.org/10.1109/ICSE.2003.1201220"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-57",
+        "ReACT_title": "Create an environment and culture that fosters a sense of belonging within the community. Implement mechanisms that encourage and enable newcomers to progress toward the center of the community through continual contributions.",
+        "Entity_responsible": "Collaboration Coordinators",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Toward an understanding of the motivation of open source software developers",
+                "doi": "https://doi.org/10.1109/ICSE.2003.1201220"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-58",
+        "ReACT_title": "Encourage senior developers to answer questions of newcomers",
+        "Entity_responsible": "Mentors",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Toward an understanding of the motivation of open source software developers",
+                "doi": "https://doi.org/10.1109/ICSE.2003.1201220"
+            },
+            {
+                "title": "Open borders? immigration in open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/4228643"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-59",
+        "ReACT_title": "Enhance the project's learning opportunities.",
+        "Entity_responsible": "Documentation Team",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Toward an understanding of the motivation of open source software developers",
+                "doi": "https://doi.org/10.1109/ICSE.2003.1201220"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-60",
+        "ReACT_title": "Promote the Project (Increase Visibility)",
+        "Entity_responsible": "Community Managers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Community-based production of open-source software: What do we know about the developers who participate?",
+                "doi": "https://doi.org/10.1016/j.infoecopol.2008.10.001"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-61",
+        "ReACT_title": "Make the tasks technically interesting\n",
+        "Entity_responsible": "Project Managers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Community-based production of open-source software: What do we know about the developers who participate?",
+                "doi": "https://doi.org/10.1016/j.infoecopol.2008.10.001"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-62",
+        "ReACT_title": "Encourage developers to start contributing to the project early ",
+        "Entity_responsible": "Mentors",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Developer Turnover in Global, Industrial Open Source Projects: Insights from Applying Survival Analysis",
+                "doi": "https://doi.org/10.1109/ICGSE.2017.11"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-63",
+        "ReACT_title": "Encourage developers to modify existing files instead of creating",
+        "Entity_responsible": "Code Reviewers",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Developer Turnover in Global, Industrial Open Source Projects: Insights from Applying Survival Analysis",
+                "doi": "https://doi.org/10.1109/ICGSE.2017.11"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-64",
+        "ReACT_title": "Encourage developers to code instead of dealing with documentations.",
+        "Entity_responsible": "Code Reviewers",
+        "Features": ", t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Developer Turnover in Global, Industrial Open Source Projects: Insights from Applying Survival Analysis",
+                "doi": "https://doi.org/10.1109/ICGSE.2017.11"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-65",
+        "ReACT_title": "Maintain the current project platform; refrain from altering it.",
+        "Entity_responsible": "Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Do People Give Up FLOSSing? A Study of Contributor Disengagement in Open Source",
+                "doi": "https://doi.org/10.1007/978-3-030-20883-7_11"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-66",
+        "ReACT_title": "Perform adequate testing before integrating a feature",
+        "Entity_responsible": "Quality Assurance Team",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why are Commits Being Reverted?: A Comparative Study of Industrial and Open Source Projects",
+                "doi": "https://doi.org/10.1109/ICSME.2016.83"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-67",
+        "ReACT_title": "Clearly communicate unresolved issues to the developers",
+        "Entity_responsible": "Project Managers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why are Commits Being Reverted?: A Comparative Study of Industrial and Open Source Projects",
+                "doi": "https://doi.org/10.1109/ICSME.2016.83"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-68",
+        "ReACT_title": "Ensure developers are informed about the changes in the project.",
+        "Entity_responsible": "Project Leaders",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why are Commits Being Reverted?: A Comparative Study of Industrial and Open Source Projects",
+                "doi": "https://doi.org/10.1109/ICSME.2016.83"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-69",
+        "ReACT_title": "Improve Inheritance in the source code (Remove implicit polymorphism, introduce generalization, Facilitate Subclassing, Use override over inheritance, Improve interface compliance)",
+        "Entity_responsible": "Code Reviewers",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-70",
+        "ReACT_title": "Improve encapsulation in the source code (Minimize public interface, remove unnecessary public variables)",
+        "Entity_responsible": "Code Reviewers",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-71",
+        "ReACT_title": "Improve exception handling in the source code",
+        "Entity_responsible": "Quality Assurance Team",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-72",
+        "ReACT_title": "Improve naming in the source code",
+        "Entity_responsible": "Code Reviewers",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-73",
+        "ReACT_title": "Cleanup source code (Improve error messages and logging, promote project coding style, fix warnings from static analysis tool)",
+        "Entity_responsible": "Code Reviewers",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-74",
+        "ReACT_title": "Improve Modularization (Modularize API, Improve organization of test directory, Remove unneeded packages)",
+        "Entity_responsible": "Technical Leads",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-75",
+        "ReACT_title": "Improve the distribution of responsibilities among developers.",
+        "Entity_responsible": "Project Managers",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-76",
+        "ReACT_title": "Enhance the extensibility of the system",
+        "Entity_responsible": "Architects",
+        "Features": "t_num_fils",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Why Developers Refactor Source Code: A Mining-based Study",
+                "doi": "https://doi.org/10.1145/3408302"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-77",
+        "ReACT_title": "Encourage the utilization of mailing lists \n",
+        "Entity_responsible": "Collaboration Coordinators",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Communication in open-source projects-end of the e-mail era?",
+                "doi": "https://doi.org/10.1145/3183440.3194951"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-78",
+        "ReACT_title": "Use and update code comments.",
+        "Entity_responsible": "Developers, Code Reviewers, Core Developers",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-79",
+        "ReACT_title": "Help potential contributors evaluate if the project is a good fit",
+        "Entity_responsible": "Collaboration Coordinators",
+        "Features": "s_num_nodes, s_avg_clustering_coef, s_weighted_mean_degree, s_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 4
+    },
+    {
+        "ReACT-ID": "ReACT-80",
+        "ReACT_title": "Make governance explicit",
+        "Entity_responsible": "Project Leaders",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-81",
+        "ReACT_title": "Keep knowledge up to date and findable",
+        "Entity_responsible": "Documentation Team",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-82",
+        "ReACT_title": "Have and enforce a code of conduct",
+        "Entity_responsible": "Community Moderators",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-83",
+        "ReACT_title": "Develop forms of legitimate peripheral participation",
+        "Entity_responsible": "Mentors",
+        "Features": "s_num_nodes, s_avg_clustering_coef, s_weighted_mean_degree, s_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 4
+    },
+    {
+        "ReACT-ID": "ReACT-84",
+        "ReACT_title": "Provide onboarding support and help newcomers to make their first contribution",
+        "Entity_responsible": "Mentors",
+        "Features": "st_num_dev, t_num_dev_nodes, ",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            },
+            {
+                "title": "The role of mentoring and project characteristics for onboarding in open source software projects",
+                "doi": "https://doi.org/10.1145/2652524.2652540"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-85",
+        "ReACT_title": "Use opportunities for in-person interaction",
+        "Entity_responsible": "Mentors",
+        "Features": "t_num_dev_nodes, t_num_dev_per_file, t_graph_density",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 3
+    },
+    {
+        "ReACT-ID": "ReACT-86",
+        "ReACT_title": "Acknowledge all contributions of newcomers",
+        "Entity_responsible": "Mentors",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-87",
+        "ReACT_title": "Follow up newcomers on both success and failure",
+        "Entity_responsible": "Mentors",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Ten simple rules for helping newcomers become contributors to open projects",
+                "doi": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007296"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-88",
+        "ReACT_title": "Assign an experienced team member to coach and guide the newcomer",
+        "Entity_responsible": "Mentors",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-89",
+        "ReACT_title": "Grant the newcomer freedom: Encourage and allow them to express opinions, propose changes, and share personal viewpoints to foster a comfortable environment.",
+        "Entity_responsible": "Community Moderators",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-90",
+        "ReACT_title": "Establish a personalized integration plan: Outline a gradual assignment of tasks and responsibilities for seamless incorporation.",
+        "Entity_responsible": "Project Managers",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Difficulties of Newcomers Joining Software Projects Already in Execution",
+                "doi": "https://doi.org/10.1109/CSCI.2017.171"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-91",
+        "ReACT_title": "Be quick to respond to the newcomer: Remember that participants are people who chose to spend time trying to help. Do not let their motivation decrease. Do not make the newcomers wait or leave them unanswered. Automatic greetings could help, at least to send the message that someone will answer them quickly, or to guide them to another possible communication channel.",
+        "Entity_responsible": "Collaboration Coordinators, Community Moderators, Mentors",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Joining free/open source software communities: An analysis of newbies' first interactions on project mailing lists",
+                "doi": "https://ieeexplore.ieee.org/document/5718853"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-92",
+        "ReACT_title": "Be kind and make newcomers feel part of the team: Experienced members should answer newcomers\u2019 messages and welcome them, even if they have already received an answer. Designating a few experienced members to deal with new members, or setting a code of conduct can potentially solve reception issues. Send thankful, welcoming messages to account for cultural differences and misunderstandings.",
+        "Entity_responsible": "Collaboration Coordinators, Community Moderators, Mentors",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-93",
+        "ReACT_title": "Have Local/regional communication channels: Whenever possible, create regional mailing lists, IRC channels, and forums,  which can encourage newcomers\u2019 first contact and reduce the barriers related to cultural difference and language",
+        "Entity_responsible": "\nCollaboration Coordinators, Community Managers, Community Moderators",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-94",
+        "ReACT_title": "Create a newcomer-specific page.  Show only what is important for newcomers\u2019 first steps, like how the project is organized, and what/where are the important resources (code repository, mailing lists, issue tracker, IRC channel, code review tool). Keep the page clean, organized, up-todate, and easy to follow.",
+        "Entity_responsible": "Documentation Team, Collaboration Coordinators, Project Leaders",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-95",
+        "ReACT_title": "Set expectations and needs early:  Show newcomers what is expected from them, where the difficulties lie, and what skills and level of expertise they need to have (what programming languages and technologies are used by the project, etc.). Place this information somewhere that newcomers access early in their journey",
+        "Entity_responsible": "Project Leaders, Collaboration Coordinators, Community Managers",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-96",
+        "ReACT_title": "Show the path, the easiest path: Create an easy to access, easy to follow path on which newcomers can start their journey. Leave breadcrumbs, left intentionally for them, to guide the newcomers to easy tasks.",
+        "Entity_responsible": "Mentors, Collaboration Coordinators, Community Managers\n",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-97",
+        "ReACT_title": "Create different kinds of tutorials and documents: Provide videos, demos, screenshots, and step-by-step tutorials for the different contribution phases. Make these tutorials simple and clear, especially for more complicated activities.",
+        "Entity_responsible": "Documentation Team, Design Team, Technical Leads",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-98",
+        "ReACT_title": "Make it easy for newcomers build the system locally: Create a step-by-step detailed tutorial, which is linked to information about usual problems and possible solutions (an excerpt of FAQ section)",
+        "Entity_responsible": "Documentation Team, Technical Leads, Collaboration Coordinators",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-99",
+        "ReACT_title": "Keep the issue list clean and triaged: Read the issue list frequently in order to clean outdated tasks and triage/tag issues. Outdated, comment-less issues can be scary to newcomers.",
+        "Entity_responsible": "Code Reviewers, Project Maintainers, Collaboration Coordinators",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-100",
+        "ReACT_title": "Document the processes and practices: Document all design decisions, processes and practices defined and make them easily accessible. Information like code/naming standards, patch submission process, task assignment process, communication practices, design decisions etc. need to be properly documented, helping newcomers in their first contributions. Remember to present the technical and social processes and practices.",
+        "Entity_responsible": "Documentation Team, Project Leaders, Technical Leads\n",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-101",
+        "ReACT_title": "Dismiss or identify outdated information:  if it is hard to keep documentation up-to-date, community members should remove outdated information or, at least, clearly identify it as outdated. Making newcomers aware of the absence or the status of a document can save their time and set their expectations. ",
+        "Entity_responsible": "Documentation Team, Community Moderators, Collaboration Coordinators",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 2,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-102",
+        "ReACT_title": "Create a live FAQ section. Create FAQ sections to help developers finding answer to recurrent questions. The FAQ must not be a static section; it must be live and grow according to questions and issues recurrently asked or reported. The community can build the FAQ cooperatively, in a wiki-like page, enabling anyone to contribute with entries (question + answer).",
+        "Entity_responsible": "Documentation Team, Collaboration Coordinators, Community Moderators",
+        "Features": "st_num_dev, t_num_dev_nodes",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Fostering Free/Libre Open Source Software community formation: guidelines for communities to support newcomers\u2019 onboarding",
+                "doi": "https://www.ime.usp.br/~gerosa/papers/fostering-freelibre-open-source-software-community-formation_-guidelines-for-communities-to-support-newcomers-onboarding-wsl-2015.pdf"
+            },
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 2
+    },
+    {
+        "ReACT-ID": "ReACT-103",
+        "ReACT_title": "Keep the community informed about decisions. When a developer choose a task to work on, they should add a comment to the issue stating that they are trying to address it. In the same way, developer should inform the community if they give up or find any problem related to the task, keeping the task updated.This way, they avoid reproducing the work of other developers",
+        "Entity_responsible": "Developers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-104",
+        "ReACT_title": "Be proactive - search archives and resources before asking questions.",
+        "Entity_responsible": "Developers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 1
+    },
+    {
+        "ReACT-ID": "ReACT-105",
+        "ReACT_title": "Use a Virtual Machine to set up the Local Workspace",
+        "Entity_responsible": "Developers",
+        "Features": "st_num_dev",
+        "References": 1,
+        "articles": [
+            {
+                "title": "Let me in: Guidelines for the successful onboarding of newcomers to open source projects",
+                "doi": "https://ieeexplore.ieee.org/document/8254320"
+            }
+        ],
+        "Importance": 1
+    }
+]
