@@ -68,6 +68,14 @@ class GraphDataLoader:
 
             logger.success(f"Loaded {len(self.df)} commit-file-dev records")
 
+            # Clean data: Remove rows with null file_path or author_name
+            original_count = len(self.df)
+            self.df = self.df.dropna(subset=["file_path", "author_name"])
+            cleaned_count = len(self.df)
+
+            if original_count > cleaned_count:
+                logger.info(f"Removed {original_count - cleaned_count} rows with missing data")
+
             # Build graphs
             self._build_developer_graph()
             self._build_file_graph()
