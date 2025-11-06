@@ -8,15 +8,15 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl, validator
 from loguru import logger
 import re
+import json
+from pathlib import Path
 
 from app.core.config import FLAGSHIP_PROJECTS, settings
 from app.crawler.governance_extractor import GovernanceExtractor
 from app.rag.rag_engine import RAGEngine
 from app.models.llm_client import LLMClient
-from app.agents.orchestrator import AgenticOrchestrator
-from app.services.oss_scraper_service import get_oss_scraper
-from app.rag.socio_technical_indexer import get_socio_technical_indexer
-from app.services.graph_loader import load_project_graph
+from app.models.intent_router import IntentRouter
+from app.data.csv_engine import CSVDataEngine
 
 router = APIRouter()
 
@@ -24,12 +24,89 @@ router = APIRouter()
 gov_extractor = GovernanceExtractor()
 rag_engine = RAGEngine()
 llm_client = LLMClient()
+intent_router = IntentRouter()
+csv_engine = CSVDataEngine(csv_data_dir="data/csv_data", llm_client=llm_client)
 
-# Initialize agentic orchestrator with shared RAG engine
-orchestrator = AgenticOrchestrator(rag_engine=rag_engine)
+# Persistent storage for dynamically added projects
+DYNAMIC_PROJECTS_FILE = Path("data/dynamic_projects.json")
+CSV_PATHS_FILE = Path("data/csv_paths.json")
 
-# In-memory storage for dynamically added projects
-dynamic_projects = {}
+
+def _load_dynamic_projects() -> dict:
+    """Load dynamic projects from disk"""
+    if DYNAMIC_PROJECTS_FILE.exists():
+        try:
+            with open(DYNAMIC_PROJECTS_FILE, "r") as f:
+                projects = json.load(f)
+                logger.info(f"📂 Loaded {len(projects)} dynamic projects from disk")
+                return projects
+        except Exception as e:
+            logger.error(f"Error loading dynamic projects: {e}")
+            return {}
+    return {}
+
+
+def _save_dynamic_projects(projects: dict):
+    """Save dynamic projects to disk"""
+    try:
+        DYNAMIC_PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(DYNAMIC_PROJECTS_FILE, "w") as f:
+            json.dump(projects, f, indent=2)
+        logger.debug(f"💾 Saved {len(projects)} dynamic projects to disk")
+    except Exception as e:
+        logger.error(f"Error saving dynamic projects: {e}")
+
+
+def _load_csv_paths() -> dict:
+    """Load CSV paths configuration from disk"""
+    if CSV_PATHS_FILE.exists():
+        try:
+            with open(CSV_PATHS_FILE, "r") as f:
+                paths = json.load(f)
+                logger.info(f"📂 Loaded CSV paths for {len(paths)} projects from disk")
+                return paths
+        except Exception as e:
+            logger.error(f"Error loading CSV paths: {e}")
+            return {}
+    return {}
+
+
+def _save_csv_paths(csv_paths: dict):
+    """Save CSV paths configuration to disk"""
+    try:
+        CSV_PATHS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(CSV_PATHS_FILE, "w") as f:
+            json.dump(csv_paths, f, indent=2)
+        logger.debug(f"💾 Saved CSV paths for {len(csv_paths)} projects to disk")
+    except Exception as e:
+        logger.error(f"Error saving CSV paths: {e}")
+
+
+def _auto_load_csv_data():
+    """Auto-load CSV data from saved paths on server startup"""
+    csv_paths = _load_csv_paths()
+    if not csv_paths:
+        logger.info("No CSV paths to auto-load")
+        return
+
+    logger.info(f"🔄 Auto-loading CSV data for {len(csv_paths)} projects...")
+    for project_id, paths in csv_paths.items():
+        try:
+            result = csv_engine.load_project_data(
+                project_id,
+                commits_path=paths.get("commits_csv_path"),
+                issues_path=paths.get("issues_csv_path")
+            )
+            logger.info(f"✅ Auto-loaded CSV for {project_id}: commits={result['commits_loaded']}, issues={result['issues_loaded']}")
+        except Exception as e:
+            logger.error(f"Error auto-loading CSV for {project_id}: {e}")
+
+
+# Load dynamic projects from disk on startup
+dynamic_projects = _load_dynamic_projects()
+
+# Auto-load CSV data on startup
+_auto_load_csv_data()
 
 
 # Pydantic Models
@@ -88,6 +165,11 @@ class AddRepositoryRequest(BaseModel):
                 return v.strip()
 
         raise ValueError('Invalid GitHub URL format. Expected: https://github.com/owner/repo or owner/repo')
+
+
+class LoadCSVRequest(BaseModel):
+    commits_csv_path: Optional[str] = None
+    issues_csv_path: Optional[str] = None
 
 
 class QueryResponse(BaseModel):
@@ -215,70 +297,21 @@ async def add_repository(request: AddRepositoryRequest):
 
         # Store in dynamic projects
         dynamic_projects[project_id] = project
+        _save_dynamic_projects(dynamic_projects)  # Persist to disk
 
-        # Step 1: Index governance documents in RAG system (EXISTING)
+        # Index governance documents in RAG system
         logger.info(f"Indexing governance documents for {project_id}")
-        gov_index_result = rag_engine.index_governance_documents(project_id, gov_data)
-
-        # Step 2: Run OSS Scraper to extract issues, PRs, commits (NEW)
-        logger.info(f"Scraping socio-technical data for {owner}/{repo}")
-        scraper = get_oss_scraper()
-        scraper_output = scraper.scrape_project(
-            owner=owner,
-            repo=repo,
-            max_issues=500,  # Limit for initial version
-            max_prs=500,
-            max_commits=1000
-        )
-
-        # Initialize counters
-        socio_tech_stats = {"issues_indexed": 0, "prs_indexed": 0, "commits_indexed": 0}
-        graph_loaded = False
-
-        # Step 3: Index socio-technical data (issues, PRs, commits) into RAG (NEW)
-        if scraper_output.get("status") == "success":
-            logger.info(f"Indexing socio-technical data for {project_id}")
-            try:
-                indexer = get_socio_technical_indexer(rag_engine)
-                socio_tech_stats = await indexer.index_project_data(project_id, scraper_output)
-                logger.success(f"Indexed {socio_tech_stats['total_chunks']} socio-technical chunks")
-            except Exception as e:
-                logger.error(f"Error indexing socio-technical data: {e}")
-                socio_tech_stats["error"] = str(e)
-
-            # Step 4: Load project-specific Graph RAG (NEW)
-            if "commit_file_dev_csv" in scraper_output:
-                logger.info(f"Loading Graph RAG for {project_id}")
-                try:
-                    graph_loader = load_project_graph(
-                        project_id=project_id,
-                        csv_path=scraper_output["commit_file_dev_csv"]
-                    )
-                    graph_stats = graph_loader.get_network_stats()
-                    graph_loaded = True
-                    logger.success(f"Loaded Graph RAG: {graph_stats.get('total_developers', 0)} developers, "
-                                 f"{graph_stats.get('total_files', 0)} files")
-                except Exception as e:
-                    logger.error(f"Error loading Graph RAG: {e}")
-                    socio_tech_stats["graph_error"] = str(e)
-        else:
-            logger.warning(f"Scraper returned non-success status: {scraper_output.get('status')}")
-            socio_tech_stats["scraper_error"] = scraper_output.get("error", "Unknown error")
+        index_result = rag_engine.index_governance_documents(project_id, gov_data)
 
         return {
             "status": "success",
-            "message": f"Successfully added {owner}/{repo} with full socio-technical data",
+            "message": f"Successfully added {owner}/{repo}",
             "project": project,
             "extraction": {
                 "files_found": len(gov_data.get("files", {})),
                 "extraction_time": gov_data.get("metadata", {}).get("extraction_time_seconds", 0),
             },
-            "indexing": {
-                "governance": gov_index_result,
-                "socio_technical": socio_tech_stats,
-                "graph_loaded": graph_loaded,
-                "total_indexed": gov_index_result.get("indexed", 0) + socio_tech_stats.get("total_chunks", 0)
-            },
+            "indexing": index_result,
             "summary": gov_extractor.get_extraction_summary(gov_data),
         }
 
@@ -322,6 +355,59 @@ async def get_project(project_id: str):
             "indexed": False,
             "chunk_count": 0,
         }
+
+
+@router.post("/projects/{project_id}/load-csv")
+async def load_csv_data(project_id: str, request: LoadCSVRequest):
+    """
+    Load CSV data (commits and/or issues) for a project
+
+    This enables querying commits and issues data alongside governance documents.
+    """
+    logger.info(f"Load CSV request for project: {project_id}")
+
+    # Verify project exists
+    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
+    if not project and project_id in dynamic_projects:
+        project = dynamic_projects[project_id]
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not request.commits_csv_path and not request.issues_csv_path:
+        raise HTTPException(status_code=400, detail="At least one CSV path must be provided")
+
+    try:
+        # Load CSV data
+        result = csv_engine.load_project_data(
+            project_id,
+            commits_path=request.commits_csv_path,
+            issues_path=request.issues_csv_path
+        )
+
+        # Save CSV paths to disk for auto-reload on server restart
+        if result.get("commits_loaded") or result.get("issues_loaded"):
+            csv_paths = _load_csv_paths()
+            csv_paths[project_id] = {
+                "commits_csv_path": request.commits_csv_path,
+                "issues_csv_path": request.issues_csv_path
+            }
+            _save_csv_paths(csv_paths)
+            logger.info(f"💾 Saved CSV paths for {project_id} to disk for auto-reload")
+
+        # Get statistics
+        available_data = csv_engine.get_available_data(project_id)
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "loaded": result,
+            "available_data": available_data,
+            "message": f"Successfully loaded CSV data for {project['name']}"
+        }
+
+    except Exception as e:
+        logger.error(f"Error loading CSV data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/crawl/{project_id}")
@@ -416,73 +502,273 @@ async def get_governance_data(project_id: str):
 
 @router.post("/query", response_model=QueryResponse)
 async def query_governance(request: QueryRequest):
-    """Query governance documents using RAG with cosine similarity"""
-    logger.info(
-        f"Query request for project {request.project_id}: '{request.query}'"
-    )
+    """
+    Multi-Modal Query Endpoint with Intent Routing
 
-    # Verify project exists (check both flagship and dynamic projects)
-    project = next(
-        (p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None
-    )
-    if not project and request.project_id in dynamic_projects:
-        project = dynamic_projects[request.project_id]
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    Routes queries to appropriate pipeline:
+    - GENERAL: Direct LLM (no RAG)
+    - GOVERNANCE: Vector RAG (ChromaDB)
+    - COMMITS: CSV Query Engine
+    - ISSUES: CSV Query Engine
+    """
+    logger.info(f"Query request: '{request.query}' | Project: {request.project_id}")
 
+    # Step 1: Classify intent
+    has_project_context = request.project_id is not None
+    intent, confidence = intent_router.classify_intent(request.query, has_project_context)
+
+    logger.info(f"🎯 Intent: {intent} (confidence: {confidence:.2f})")
+
+    # Step 2: Route to appropriate handler
     try:
-        # Use RAG engine to get relevant context with cosine similarity
-        context, sources = rag_engine.get_context_for_query(
-            request.query,
-            request.project_id,
-            max_chunks=request.max_results,
-        )
+        if intent == "OUT_OF_SCOPE":
+            # Return a polite message for out-of-scope queries
+            return QueryResponse(
+                project_id=request.project_id or "general",
+                query=request.query,
+                response="I'm a project governance assistant designed to help you understand open-source project documentation, contribution guidelines, maintainers, issues, and commit history. Please ask me questions about the selected project's governance, contributors, issues, or commits.",
+                sources=[],
+                metadata={
+                    "intent": intent,
+                    "confidence": confidence,
+                    "data_source": "out_of_scope",
+                },
+            )
 
-        if not context:
+        elif intent == "GENERAL":
+            # Direct LLM response (no RAG, no project data)
+            llm_response = await llm_client.generate_response(
+                query=request.query,
+                context="You are a helpful AI assistant. Answer the user's question based on your knowledge.",
+                project_name="General",
+                temperature=request.temperature,
+                query_type="general",
+            )
+
+            return QueryResponse(
+                project_id=request.project_id or "general",
+                query=request.query,
+                response=llm_response.get("response", ""),
+                sources=[],
+                metadata={
+                    "intent": intent,
+                    "confidence": confidence,
+                    "data_source": "llm_knowledge",
+                    "llm_model": llm_response.get("model"),
+                    "generation_time_ms": llm_response.get("total_duration_ms"),
+                },
+            )
+
+        # For project-specific intents, verify project exists
+        if not request.project_id:
+            return QueryResponse(
+                project_id="none",
+                query=request.query,
+                response="Please select a project first to query project-specific information.",
+                sources=[],
+                metadata={"intent": intent, "error": "no_project_selected"},
+            )
+
+        project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None)
+        if not project and request.project_id in dynamic_projects:
+            project = dynamic_projects[request.project_id]
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        if intent == "GOVERNANCE":
+            # Use existing ChromaDB vector RAG
+            context, sources, query_type = rag_engine.get_context_for_query(
+                request.query,
+                request.project_id,
+                max_chunks=request.max_results,
+            )
+
+            if not context:
+                return QueryResponse(
+                    project_id=request.project_id,
+                    query=request.query,
+                    response="No relevant governance documents found for this project. Please make sure the project has been crawled first.",
+                    sources=[],
+                    metadata={"intent": intent, "has_context": False},
+                )
+
+            # Build conversation history
+            conversation_history = []
+            if request.conversation_history:
+                for msg in request.conversation_history:
+                    conversation_history.append({"role": msg.role, "content": msg.content})
+
+            llm_response = await llm_client.generate_response(
+                query=request.query,
+                context=context,
+                project_name=project["name"],
+                temperature=request.temperature,
+                conversation_history=conversation_history,
+                query_type=query_type,
+            )
+
             return QueryResponse(
                 project_id=request.project_id,
                 query=request.query,
-                response="No relevant governance documents found for this project. Please make sure the project has been crawled first.",
-                sources=[],
-                metadata={"has_context": False},
+                response=llm_response.get("response", ""),
+                sources=sources,
+                metadata={
+                    "intent": intent,
+                    "confidence": confidence,
+                    "data_source": "vector_db",
+                    "context_length": len(context),
+                    "llm_model": llm_response.get("model"),
+                    "generation_time_ms": llm_response.get("total_duration_ms"),
+                },
             )
 
-        # Build conversation history for LLM
-        conversation_history = []
-        if request.conversation_history:
-            for msg in request.conversation_history:
-                conversation_history.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
+        elif intent in ["COMMITS", "ISSUES"]:
+            # Use CSV Query Engine
+            data_type = "commits" if intent == "COMMITS" else "issues"
 
-        # Generate LLM response with conversation history
-        llm_response = await llm_client.generate_response(
-            query=request.query,
-            context=context,
-            project_name=project["name"],
-            temperature=request.temperature,
-            conversation_history=conversation_history,
-        )
+            # Check if CSV data is available
+            available_data = csv_engine.get_available_data(request.project_id)
+            if not available_data.get(data_type):
+                return QueryResponse(
+                    project_id=request.project_id,
+                    query=request.query,
+                    response=f"No {data_type} data available for this project. Please load the CSV data first.",
+                    sources=[],
+                    metadata={
+                        "intent": intent,
+                        "data_source": "csv",
+                        "error": f"no_{data_type}_data"
+                    },
+                )
 
-        return QueryResponse(
-            project_id=request.project_id,
-            query=request.query,
-            response=llm_response.get("response", ""),
-            sources=sources,
-            metadata={
-                "has_context": True,
-                "context_length": len(context),
-                "llm_model": llm_response.get("model"),
-                "generation_time_ms": llm_response.get("total_duration_ms"),
-                "tokens_generated": llm_response.get("eval_count"),
-            },
-        )
+            # Get context from CSV engine
+            context, records = csv_engine.get_context_for_query(
+                request.project_id,
+                request.query,
+                data_type
+            )
+
+            if not context or len(records) == 0:
+                return QueryResponse(
+                    project_id=request.project_id,
+                    query=request.query,
+                    response=f"No {data_type} data found matching your query.",
+                    sources=[],
+                    metadata={"intent": intent, "data_source": "csv"},
+                )
+
+            # Check if this is an aggregation query (how many, count, total, etc.)
+            is_aggregation = intent_router.is_aggregation_query(request.query)
+
+            # For aggregation queries with stats data, format response directly
+            if is_aggregation and len(records) > 0:
+                first_record = records[0]
+
+                # Check if this is a stats record (has aggregate fields)
+                if data_type == "issues" and "total_issues" in first_record:
+                    # Format stats directly without LLM
+                    total = first_record.get('total_issues', 0)
+                    open_count = first_record.get('open_issues', 0)
+                    closed_count = first_record.get('closed_issues', 0)
+                    unique_reporters = first_record.get('unique_reporters', 0)
+
+                    llm_response_text = f"There are **{open_count} open issues** and **{closed_count} closed issues** ({total} total). These issues were reported by {unique_reporters} unique contributors."
+
+                    # Create single source showing the stats
+                    sources = [{
+                        "file_path": f"{data_type.capitalize()} Statistics",
+                        "file_type": data_type,
+                        "score": 1.0,
+                        "content": f"Total: {total}, Open: {open_count}, Closed: {closed_count}, Reporters: {unique_reporters}"
+                    }]
+
+                    return QueryResponse(
+                        project_id=request.project_id,
+                        query=request.query,
+                        response=llm_response_text,
+                        sources=sources,
+                        metadata={
+                            "intent": intent,
+                            "data_source": "csv",
+                            "query_type": "aggregation",
+                            "stats": first_record
+                        },
+                    )
+
+                elif data_type == "commits" and "total_commits" in first_record:
+                    # Format commit stats directly
+                    total = first_record.get('total_commits', 0)
+                    unique_authors = first_record.get('unique_authors', 0)
+                    files_changed = first_record.get('files_changed', 0)
+
+                    llm_response_text = f"There are **{total} total commits** from {unique_authors} unique authors, affecting {files_changed} files."
+
+                    sources = [{
+                        "file_path": f"{data_type.capitalize()} Statistics",
+                        "file_type": data_type,
+                        "score": 1.0,
+                        "content": f"Total commits: {total}, Authors: {unique_authors}, Files: {files_changed}"
+                    }]
+
+                    return QueryResponse(
+                        project_id=request.project_id,
+                        query=request.query,
+                        response=llm_response_text,
+                        sources=sources,
+                        metadata={
+                            "intent": intent,
+                            "data_source": "csv",
+                            "query_type": "aggregation",
+                            "stats": first_record
+                        },
+                    )
+
+            # For non-aggregation queries, use LLM to generate response
+            llm_response = await llm_client.generate_response(
+                query=request.query,
+                context=context,  # Just pass the DataFrame string
+                project_name=project["name"],
+                temperature=0.0,  # Zero temperature for maximum factual precision, prevent hallucinations
+                query_type=data_type,  # "commits" or "issues" - triggers CSV-specific prompting
+            )
+
+            # Format sources from CSV records
+            sources = []
+            for i, record in enumerate(records[:5]):  # Top 5 records
+                if data_type == "commits":
+                    sources.append({
+                        "file_path": f"Commit: {record.get('commit_sha', 'N/A')[:8]}",
+                        "file_type": "commits",
+                        "score": 1.0 - (i * 0.1),  # Decreasing relevance
+                        "content": f"{record.get('name')} - {record.get('filename')} ({record.get('date')})"
+                    })
+                else:  # issues
+                    sources.append({
+                        "file_path": f"Issue #{record.get('issue_num', 'N/A')}",
+                        "file_type": "issues",
+                        "score": 1.0 - (i * 0.1),
+                        "content": f"{record.get('title', 'N/A')} by {record.get('user_login', 'N/A')}"
+                    })
+
+            return QueryResponse(
+                project_id=request.project_id,
+                query=request.query,
+                response=llm_response.get("response", ""),
+                sources=sources,
+                metadata={
+                    "intent": intent,
+                    "confidence": confidence,
+                    "data_source": "csv",
+                    "records_found": len(records),
+                    "llm_model": llm_response.get("model"),
+                    "generation_time_ms": llm_response.get("total_duration_ms"),
+                },
+            )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in query_governance: {e}")
+        logger.error(f"Error in query endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -503,8 +789,8 @@ async def query_governance_stream(request: QueryRequest):
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
-        # Get context from RAG
-        context, sources = rag_engine.get_context_for_query(
+        # Get context from RAG with intelligent search
+        context, sources, query_type = rag_engine.get_context_for_query(
             request.query,
             request.project_id,
             max_chunks=request.max_results,
@@ -523,6 +809,7 @@ async def query_governance_stream(request: QueryRequest):
                 context=context,
                 project_name=project["name"],
                 temperature=request.temperature,
+                query_type=query_type,
             ),
             media_type="text/plain",
         )
@@ -600,77 +887,3 @@ async def get_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/query/agentic", response_model=QueryResponse)
-async def query_agentic(request: QueryRequest):
-    """
-    Agentic query endpoint with intent routing
-
-    This endpoint uses the agentic RAG system:
-    1. Intent router classifies query (deterministic + LLM)
-    2. Routes to specialized agent (General LLM or Governance RAG)
-    3. Agent processes query and returns grounded response
-
-    Solves the "Hello" problem - responds naturally to greetings
-    without citing governance documents inappropriately
-
-    Note: project_id is optional. If not provided, only conversational queries will work.
-    """
-    logger.info(
-        f"Agentic query for project {request.project_id}: '{request.query}'"
-    )
-
-    # Verify project exists (if project_id provided)
-    # For conversational queries (Hello, What can you do), project is optional
-    project = None
-    if request.project_id:
-        project = next(
-            (p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None
-        )
-        if not project and request.project_id in dynamic_projects:
-            project = dynamic_projects[request.project_id]
-        # Don't raise error - let orchestrator decide if project is needed based on intent
-
-    try:
-        # Build conversation history
-        conversation_history = []
-        if request.conversation_history:
-            for msg in request.conversation_history:
-                conversation_history.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-
-        # Process query through agentic orchestrator
-        result = await orchestrator.process_query(
-            query=request.query,
-            project_id=request.project_id,
-            conversation_history=conversation_history,
-        )
-
-        return QueryResponse(
-            project_id=request.project_id or "general",
-            query=request.query,
-            response=result.get("response", ""),
-            sources=result.get("sources", []),
-            metadata=result.get("metadata", {}),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in agentic query: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/agentic/stats")
-async def get_agentic_stats():
-    """Get agentic system statistics"""
-    try:
-        stats = orchestrator.get_stats()
-        return {
-            "status": "operational",
-            "agentic_system": stats,
-        }
-    except Exception as e:
-        logger.error(f"Error getting agentic stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))

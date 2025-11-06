@@ -1,0 +1,11 @@
+{
+  "keras-team-keras-io": {
+    "id": "keras-team-keras-io",
+    "name": "keras-io",
+    "owner": "keras-team",
+    "repo": "keras-io",
+    "description": "Custom repository: keras-team/keras-io",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/keras-team/keras-io"
+  }
+}

@@ -64,9 +64,10 @@ class LLMClient:
         project_name: str,
         include_sources: bool = True,
         conversation_history: Optional[List[Dict]] = None,
+        query_type: str = "general",
     ) -> str:
         """
-        Build context-aware prompt for governance queries
+        Build task-specific prompt with few-shot examples for governance queries
 
         Args:
             query: User question
@@ -74,26 +75,220 @@ class LLMClient:
             project_name: Name of the project
             include_sources: Whether to ask LLM to cite sources
             conversation_history: Previous conversation messages
+            query_type: Type of query (who, what, how, general)
 
         Returns:
             Formatted prompt string
         """
-        system_prompt = f"""You are an expert assistant specialized in open source software governance.
-You help users understand governance policies, contribution processes, and community guidelines for OSS projects.
+        # Task-specific instructions based on query type
+        task_instructions = {
+            "who": """
+TASK: ENTITY EXTRACTION - Extract names, emails, GitHub usernames, and roles
 
-You are currently answering questions about the {project_name} project.
+CRITICAL INSTRUCTIONS:
+1. Search the documents below for actual names, email addresses, and GitHub usernames
+2. Look for these patterns:
+   - Email format: "Name <email@domain>" or "M: Name <email>"
+   - GitHub format: "@username" (e.g., @fchollet, @MarkDaoust)
+   - CODEOWNERS format: "/path/ @username1 @username2"
+   - Plain names: "Maintained by: John Doe"
+3. ONLY extract names/usernames that actually appear in the documents
+4. When you find GitHub usernames (starting with @), extract them as maintainers
+5. If NO names/emails/usernames are found, you MUST respond: "No maintainer information found in the available documents"
+6. IGNORE any format descriptions or template explanations
+7. DO NOT invent or guess names - only extract what you can see
 
-Guidelines:
-1. Answer based ONLY on the provided governance documents
-2. If the answer is not in the documents, say "I don't have information about that in the governance documents"
-3. Be specific and cite which document type your answer comes from (e.g., CONTRIBUTING.md, CODE_OF_CONDUCT.md)
-4. Provide clear, actionable information
-5. Use bullet points for multi-step processes
-6. Be concise but complete
-7. Use previous conversation context when relevant to understand follow-up questions
+RESPONSE LENGTH: Provide a complete answer. List all entities found with their roles/context from the document.
 
-GOVERNANCE DOCUMENTS:
+EXAMPLE EXTRACTION:
+Input: "/guides/ @fchollet @MarkDaoust @pcoet"
+Output: "The maintainers for the /guides/ directory are @fchollet, @MarkDaoust, and @pcoet (GitHub usernames from CODEOWNERS)."
+""",
+            "how": """
+TASK: PROCESS EXPLANATION - Explain step-by-step procedures
+
+INSTRUCTIONS:
+- Provide a comprehensive explanation of the process
+- Break down into clear, numbered steps if the procedure has multiple stages
+- Include any prerequisites, requirements, or important context
+- Mention specific tools, commands, or guidelines referenced in the documents
+- Add relevant details that help the user understand the complete process
+- Cite which documents contain each piece of information
+
+RESPONSE LENGTH: Match the complexity of the question. Simple processes can be 2-3 sentences, complex workflows need detailed step-by-step breakdowns.
+""",
+            "what": """
+TASK: DEFINITION - Explain what something is
+
+INSTRUCTIONS:
+- Start with a clear, direct definition
+- Provide comprehensive project-specific context from the documents
+- Include relevant examples, use cases, or implementation details
+- Explain the purpose, scope, or importance if mentioned in the documents
+- Add any related information that provides complete understanding
+
+RESPONSE LENGTH: Provide enough detail for full understanding. Include all relevant context from the documents.
+""",
+            "commits": """
+TASK: ANALYZE COMMIT DATA - Answer questions about repository commits
+
+CRITICAL INSTRUCTIONS:
+1. Answer ONLY using the commit data shown below
+2. DO NOT make up or invent information
+3. Include specific details (commit SHAs, author names, dates, files, messages)
+4. Provide comprehensive answers with all relevant data points
+5. For statistical questions, include numbers and context
+6. For list questions, provide the full requested list with supporting details
+7. If the data doesn't answer the question, say "The commit data doesn't contain this information"
+
+RESPONSE LENGTH: Provide complete, informative answers. Include all relevant commits/data with details.
+""",
+            "issues": """
+TASK: ANALYZE ISSUES DATA - Answer questions about repository issues
+
+CRITICAL INSTRUCTIONS:
+1. Answer ONLY using the issues data shown below
+2. DO NOT make up or invent information
+3. Include specific details (issue numbers, titles, users, states, dates, comment counts)
+4. Provide comprehensive answers with all relevant data points
+5. For statistical questions, include numbers and context
+6. For list questions, provide the full requested list with supporting details
+7. If the data doesn't answer the question, say "The issues data doesn't contain this information"
+
+RESPONSE LENGTH: Provide complete, informative answers. Include all relevant issues/data with details.
+""",
+            "general": """
+TASK: GENERAL INFORMATION RETRIEVAL
+
+INSTRUCTIONS:
+- Provide comprehensive, well-structured answers
+- Cite document names when referencing information
+- Use bullet points or numbered lists for multi-part answers
+- Include all relevant context and details from the documents
+- Balance brevity with completeness - don't omit important information
+
+RESPONSE LENGTH: Match the question's complexity. Provide enough detail for complete understanding.
+""",
+        }
+
+        # Get task-specific instructions
+        task_instruction = task_instructions.get(query_type, task_instructions["general"])
+
+        # Different prompt structure for CSV data vs governance documents
+        if query_type in ["commits", "issues"]:
+            data_label = f"{query_type.upper()} DATA"
+
+            # Enhanced anti-hallucination rules for CSV data
+            if query_type == "issues":
+                extra_rules = """
+6. NEVER invent issue numbers (like #1234, #5678)
+7. NEVER invent usernames (like "JohnDoe", "JaneDoe", "BobSmith")
+8. NEVER invent locations or states (like "CA", "NY", "TX")
+9. If asked for "updated" issues but data only has "created" dates, say: "The data shows recently created issues, not recently updated"
+10. Only use issue numbers, titles, and usernames that appear verbatim in the data below
+"""
+            elif query_type == "commits":
+                extra_rules = """
+6. NEVER invent commit SHAs or author names
+7. If asked for "top contributors" and you see names with counts, LIST THEM
+8. If asked about "files" and you see filenames, COUNT or LIST THEM
+9. Do not be overly conservative - if data is visible, extract it
+"""
+            else:
+                extra_rules = ""
+
+            system_prompt = f"""You are analyzing {query_type} data for the {project_name} repository.
+
+{task_instruction}
+
+⚠️ CRITICAL ANTI-HALLUCINATION RULES ⚠️
+1. You MUST answer ONLY using the {query_type} data below
+2. DO NOT use external knowledge, training data, or previous conversations
+3. If information is missing, you MUST say: "The {query_type} data doesn't contain this information"
+4. Be factual and precise
+5. Include specific details from the data (SHAs, names, dates, numbers){extra_rules}
+
+{data_label} FOR {project_name}:
 {context}
+
+REMINDER: Only use information from the {query_type} data above. Do not use external knowledge or invent data.
+
+"""
+        else:
+            # Enhanced governance documents prompt with stronger anti-hallucination measures
+            system_prompt = f"""You are a precise document analyst for the {project_name} project.
+
+{task_instruction}
+
+CRITICAL INSTRUCTIONS:
+
+RULE 1: INFORMATION SOURCE
+- Your ONLY source of information is the project documents provided below
+- These documents include README, CONTRIBUTING, governance files, and other project documentation
+- They contain information about the project's features, examples, guidelines, policies, and structure
+- Answer questions about ANY aspect of the project if it appears in the documents
+- DO NOT use external knowledge, training data, or general information beyond what's in the documents
+- DO NOT make logical inferences beyond what is explicitly stated
+- DO NOT fill in "reasonable" assumptions or common practices
+
+RULE 2: HANDLING MISSING INFORMATION
+If information is NOT in the documents, respond EXACTLY like this:
+"The available project documents for {project_name} do not contain information about [topic]. I cannot answer this question based on the provided documents."
+
+DO NOT:
+❌ Provide general knowledge answers (e.g., "typically", "usually", "commonly")
+❌ Make up specific details (numbers, percentages, thresholds, names, policies)
+❌ Give partial answers then admit uncertainty afterward
+❌ Hedge with phrases like "based on general practices" or "it's likely that"
+
+RULE 3: VERIFICATION PROCESS
+Before stating ANY fact:
+1. Locate the exact text in the documents below
+2. Verify it's explicitly stated, not inferred
+3. Note which document it comes from
+4. Only then include it in your answer
+
+RULE 4: ANSWER FORMAT
+✅ GOOD: "According to GOVERNANCE.md, maintainers are elected by consensus vote."
+❌ BAD: "Maintainers are typically elected by a majority vote, though this isn't explicitly stated in the documents."
+
+RULE 5: NAMES, NUMBERS, AND SPECIFICS
+- Only mention names, emails, numbers, or percentages that appear verbatim in the documents
+- If you cannot find a specific piece of information, say so explicitly
+- Never invent examples or provide "typical" values
+
+RULE 6: OUTPUT FORMAT - CRITICAL
+DO NOT EXPOSE YOUR REASONING PROCESS TO THE USER.
+- DO NOT write: "Here's a step-by-step guide...", "First, let me verify...", "Based on my analysis..."
+- DO NOT explain: "I checked the documents...", "I found this in...", "Note that I followed..."
+- DO NOT list steps: "1. Verify information, 2. Check LICENSE, 3. Review README..."
+- DO NOT mention: "CRITICAL", "ANTI-HALLUCINATION", "PROTOCOL", "rules", or "guidelines I'm following"
+
+CORRECT OUTPUT: Direct answer with source citation and adequate detail
+Example: "You can contribute by submitting a PR adding examples to examples/vision/script_name.py (README.md). The maintainers who review contributions are @user1, @user2, and @user3 (CODEOWNERS)."
+
+✅ CORRECT OUTPUT: When no information found
+Example: "The available project documents do not contain information about voting procedures."
+
+RULE 7: RESPONSE COMPLETENESS
+- Provide COMPLETE answers with all relevant details from the documents
+- Include supporting information like titles, dates, counts, names, or descriptions when available
+- For list queries (e.g., "top 5 issues"), provide ALL requested items with details
+- Balance brevity with informativeness - don't be overly terse
+- The user is asking YOU a question. Give them a helpful, informative answer.
+
+═══════════════════════════════════════════
+
+AVAILABLE GOVERNANCE DOCUMENTS FOR {project_name}:
+{context}
+
+═══════════════════════════════════════════
+
+FINAL REMINDER:
+- Extract ONLY what is explicitly written above
+- Cite document names when providing information (use format: "answer text (DOCUMENT_NAME)")
+- If uncertain or information is missing, clearly state that
+- DO NOT explain your reasoning process - just provide the answer
 
 """
 
@@ -109,14 +304,9 @@ GOVERNANCE DOCUMENTS:
                     system_prompt += f"Assistant: {content}\n"
             system_prompt += "\n"
 
-        user_prompt = f"""Question: {query}
+        user_prompt = f"""USER QUESTION: {query}
 
-Please provide a clear answer based on the governance documents above."""
-
-        if include_sources:
-            user_prompt += (
-                " Cite which governance document(s) you're referencing."
-            )
+Your answer:"""
 
         full_prompt = f"{system_prompt}\n{user_prompt}"
 
@@ -130,6 +320,7 @@ Please provide a clear answer based on the governance documents above."""
         temperature: float = 0.3,
         max_tokens: int = 1000,
         conversation_history: Optional[List[Dict]] = None,
+        query_type: str = "general",
     ) -> Dict:
         """
         Generate response using Ollama API (async)
@@ -141,23 +332,31 @@ Please provide a clear answer based on the governance documents above."""
             temperature: Sampling temperature (0.0 - 1.0)
             max_tokens: Maximum tokens to generate
             conversation_history: Previous conversation messages
+            query_type: Type of query for task-specific prompting
 
         Returns:
             Dict with response and metadata
         """
         prompt = self._build_governance_prompt(
-            query, context, project_name, conversation_history=conversation_history
+            query, context, project_name,
+            conversation_history=conversation_history,
+            query_type=query_type
         )
+
+        # Use more conservative sampling parameters for factual accuracy
+        # Lower temperature and top_p reduce hallucination risk
+        actual_temperature = min(temperature, 0.2) if query_type != "general" else temperature
 
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": temperature,
+                "temperature": actual_temperature,  # Lower for factual queries
                 "num_predict": max_tokens,
-                "top_p": 0.9,
-                "top_k": 40,
+                "top_p": 0.7,  # Reduced from 0.9 for more focused sampling
+                "top_k": 20,   # Reduced from 40 for more deterministic output
+                "repeat_penalty": 1.1,  # Prevent repetition
             },
         }
 
@@ -198,6 +397,7 @@ Please provide a clear answer based on the governance documents above."""
         temperature: float = 0.3,
         max_tokens: int = 1000,
         conversation_history: Optional[List[Dict]] = None,
+        query_type: str = "general",
     ) -> AsyncIterator[str]:
         """
         Generate streaming response from Ollama
@@ -209,23 +409,30 @@ Please provide a clear answer based on the governance documents above."""
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             conversation_history: Previous conversation messages
+            query_type: Type of query for task-specific prompting
 
         Yields:
             Response chunks as they're generated
         """
         prompt = self._build_governance_prompt(
-            query, context, project_name, conversation_history=conversation_history
+            query, context, project_name,
+            conversation_history=conversation_history,
+            query_type=query_type
         )
+
+        # Use same conservative sampling as non-streaming
+        actual_temperature = min(temperature, 0.2) if query_type != "general" else temperature
 
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": True,
             "options": {
-                "temperature": temperature,
+                "temperature": actual_temperature,
                 "num_predict": max_tokens,
-                "top_p": 0.9,
-                "top_k": 40,
+                "top_p": 0.7,
+                "top_k": 20,
+                "repeat_penalty": 1.1,
             },
         }
 

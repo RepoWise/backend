@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # Ollama Configuration
     ollama_host: str = Field(default="http://localhost:11434", env="OLLAMA_HOST")
-    ollama_model: str = Field(default="llama3.2:1b", env="OLLAMA_MODEL")
+    ollama_model: str = Field(default="qwen2.5:3b", env="OLLAMA_MODEL")  # 3B model for better reasoning and reduced hallucinations
 
     # ChromaDB Configuration
     chroma_persist_dir: str = Field(default="../chromadb", env="CHROMA_PERSIST_DIR")

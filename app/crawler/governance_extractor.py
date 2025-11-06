@@ -140,7 +140,11 @@ class GovernanceExtractor:
                 ".github/SECURITY.md",
                 "docs/GOVERNANCE.md",
                 "MAINTAINERS.md",
+                "MAINTAINERS",
                 "OWNERS",
+                "CODEOWNERS",
+                ".github/CODEOWNERS",
+                "docs/CODEOWNERS",
             ]
 
             for path in common_paths:

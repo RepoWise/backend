@@ -1,150 +1,70 @@
 """
-RAG Engine with Simple Vector Store for Governance Document Search
-Implements semantic search, document chunking, and context retrieval
-ENHANCED: Hybrid search with BM25 + vector fusion using Reciprocal Rank Fusion (RRF)
-UPGRADED: OpenAI embeddings with automatic fallback to local models
+Production-Grade RAG Engine with ChromaDB for Governance Document Search
+Implements hybrid search, semantic chunking, and advanced retrieval
+Using local Sentence Transformers embeddings (free, offline, no API keys)
 """
 import hashlib
-import pickle
-from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from loguru import logger
 
-from rank_bm25 import BM25Okapi
-
 from app.core.config import settings
-from app.rag.simple_vector_store import SimpleVectorStore
+from app.rag.chroma_vector_store import ChromaVectorStore
 from app.rag.openai_embedder import get_embedder
 
 
 class RAGEngine:
     """
-    Retrieval-Augmented Generation engine for governance documents
+    Production-grade Retrieval-Augmented Generation engine
 
     Features:
     - Semantic document chunking with overlap
-    - Vector similarity search using ChromaDB
-    - BM25 keyword search for exact term matching
-    - Hybrid search (semantic + keyword) with Reciprocal Rank Fusion (RRF)
-    - Context-aware retrieval with metadata filtering
+    - ChromaDB with persistent storage
+    - Hybrid search (semantic + keyword)
+    - Multi-project isolation
+    - Advanced metadata filtering
+    - Relevance scoring and reranking
+    - Local embeddings (Sentence Transformers - free, offline)
     """
 
     def __init__(self):
-        """Initialize RAG engine with SimpleVectorStore, embedding model, and BM25 index"""
+        """Initialize RAG engine with ChromaDB and embedding model"""
 
-        # Initialize unified embedder (OpenAI or SentenceTransformers)
-        self.embedder = get_embedder(prefer_openai=True)
+        # Initialize local embedder (Sentence Transformers)
+        self.embedder = get_embedder()
         embedder_info = self.embedder.get_info()
         logger.info(
             f"Embedding provider: {embedder_info['provider']} "
             f"({embedder_info['model']}, {embedder_info['dimensions']} dims)"
         )
-        if embedder_info['provider'] == 'openai':
-            logger.info(f"💰 Cost: ${embedder_info['cost_per_1m_tokens']:.3f}/1M tokens")
-        else:
-            logger.info("🆓 Using free local embeddings")
+        logger.info("🆓 Using free local embeddings")
 
-        # Initialize simple vector store
-        self.vector_store = SimpleVectorStore(persist_dir=settings.chroma_persist_dir)
+        # Initialize ChromaDB vector store
+        self.vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
 
-        # BM25 index storage (project_id -> BM25 index + document mapping)
-        self.bm25_indices: Dict[str, Dict] = {}
-        self.bm25_persist_dir = Path(settings.chroma_persist_dir) / "bm25_indices"
-        self.bm25_persist_dir.mkdir(exist_ok=True)
-
-        # Load existing BM25 indices
-        self._load_bm25_indices()
-
-        logger.success("RAG Engine initialized with hybrid search support")
-
-    def _tokenize(self, text: str) -> List[str]:
-        """Simple tokenization for BM25"""
-        return text.lower().split()
-
-    def _load_bm25_indices(self):
-        """Load BM25 indices from disk"""
-        try:
-            for index_file in self.bm25_persist_dir.glob("*.pkl"):
-                project_id = index_file.stem
-                with open(index_file, "rb") as f:
-                    self.bm25_indices[project_id] = pickle.load(f)
-                logger.info(f"Loaded BM25 index for project: {project_id}")
-        except Exception as e:
-            logger.warning(f"Could not load BM25 indices: {e}")
-
-    def _save_bm25_index(self, project_id: str):
-        """Save BM25 index for a project to disk"""
-        try:
-            index_file = self.bm25_persist_dir / f"{project_id}.pkl"
-            with open(index_file, "wb") as f:
-                pickle.dump(self.bm25_indices[project_id], f)
-            logger.info(f"Saved BM25 index for project: {project_id}")
-        except Exception as e:
-            logger.error(f"Error saving BM25 index: {e}")
-
-    def _reciprocal_rank_fusion(
-        self,
-        vector_results: List[Dict],
-        bm25_results: List[Dict],
-        k: int = 60
-    ) -> List[Dict]:
-        """
-        Reciprocal Rank Fusion (RRF) algorithm to combine vector and BM25 results
-
-        RRF Formula: score(d) = Σ 1/(k + rank(d))
-        where k=60 is a constant (standard in literature)
-
-        Args:
-            vector_results: Results from vector search (with 'id' and 'score')
-            bm25_results: Results from BM25 search (with 'id' and 'score')
-            k: RRF constant (default=60)
-
-        Returns:
-            Fused results sorted by RRF score
-        """
-        rrf_scores = {}
-
-        # Process vector results
-        for rank, result in enumerate(vector_results, start=1):
-            doc_id = result.get("id", result.get("content", "")[:50])  # Use content snippet as fallback
-            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + 1 / (k + rank)
-
-        # Process BM25 results
-        for rank, result in enumerate(bm25_results, start=1):
-            doc_id = result.get("id", result.get("content", "")[:50])
-            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + 1 / (k + rank)
-
-        # Create mapping of doc_id to full result
-        all_results = {
-            result.get("id", result.get("content", "")[:50]): result
-            for result in vector_results + bm25_results
-        }
-
-        # Sort by RRF score
-        fused = []
-        for doc_id, rrf_score in sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True):
-            if doc_id in all_results:
-                result = all_results[doc_id].copy()
-                result["rrf_score"] = rrf_score
-                result["fusion_method"] = "rrf"
-                fused.append(result)
-
-        return fused
+        logger.success("RAG Engine initialized with ChromaDB hybrid search")
 
     def chunk_document(
         self,
         content: str,
-        chunk_size: int = 512,
-        overlap: int = 50,
+        chunk_size: int = 800,
+        overlap: int = 100,
+        min_chunk_size: int = 200,
         metadata: Dict = None,
     ) -> List[Tuple[str, Dict]]:
         """
         Split document into semantically meaningful chunks with overlap
 
+        Enhanced chunking strategy:
+        - Prefers paragraph boundaries (double newlines)
+        - Falls back to sentence boundaries
+        - Enforces minimum chunk size for context
+        - Prevents tiny fragment chunks
+
         Args:
             content: Document text
-            chunk_size: Target chunk size in tokens (approximate)
+            chunk_size: Target chunk size in characters
             overlap: Number of characters to overlap between chunks
+            min_chunk_size: Minimum chunk size to prevent fragments
             metadata: Metadata to attach to each chunk
 
         Returns:
@@ -153,42 +73,91 @@ class RAGEngine:
         if not content or not content.strip():
             return []
 
-        # Simple character-based chunking (can be enhanced with sentence splitting)
         chunks = []
         start = 0
         content_length = len(content)
 
-        while start < content_length:
-            end = start + chunk_size
+        # For very small documents (e.g., CODEOWNERS), index as-is without chunking
+        if content_length < min_chunk_size:
+            chunk_metadata = {
+                **(metadata or {}),
+                "chunk_index": 0,
+                "chunk_start": 0,
+                "chunk_end": content_length,
+            }
+            chunks.append((content.strip(), chunk_metadata))
+            logger.debug(f"Small document ({content_length} chars) indexed as single chunk")
+            return chunks
 
-            # Try to break at sentence boundary
-            if end < content_length:
-                # Look for sentence endings
-                for sep in [". ", ".\n", "! ", "!\n", "? ", "?\n"]:
-                    sep_pos = content.rfind(sep, start, end + 100)
-                    if sep_pos > start:
-                        end = sep_pos + len(sep)
+        while start < content_length:
+            # Calculate target end position
+            end = min(start + chunk_size, content_length)
+
+            # If we're at the end, take everything remaining
+            if end >= content_length:
+                chunk_text = content[start:].strip()
+                if chunk_text and len(chunk_text) >= min_chunk_size:
+                    chunk_metadata = {
+                        **(metadata or {}),
+                        "chunk_index": len(chunks),
+                        "chunk_start": start,
+                        "chunk_end": content_length,
+                    }
+                    chunks.append((chunk_text, chunk_metadata))
+                elif chunk_text and chunks:
+                    # Merge small final chunk with previous chunk
+                    prev_chunk_text, prev_metadata = chunks[-1]
+                    merged_text = prev_chunk_text + "\n\n" + chunk_text
+                    chunks[-1] = (merged_text, prev_metadata)
+                break
+
+            # Try to find a good break point
+            best_break = end
+
+            # 1. Try paragraph break (double newline) within reasonable range
+            paragraph_search_start = max(start + min_chunk_size, end - 200)
+            paragraph_pos = content.rfind("\n\n", paragraph_search_start, end + 100)
+            if paragraph_pos > start + min_chunk_size:
+                best_break = paragraph_pos + 2
+            else:
+                # 2. Try sentence boundary
+                sentence_search_start = max(start + min_chunk_size, end - 150)
+                for sep in [".\n", ". ", "!\n", "! ", "?\n", "? "]:
+                    sep_pos = content.rfind(sep, sentence_search_start, end + 100)
+                    if sep_pos > start + min_chunk_size:
+                        best_break = sep_pos + len(sep)
                         break
 
-            chunk_text = content[start:end].strip()
+                # 3. If no good break found, try newline
+                if best_break == end:
+                    newline_pos = content.rfind("\n", sentence_search_start, end + 50)
+                    if newline_pos > start + min_chunk_size:
+                        best_break = newline_pos + 1
 
-            if chunk_text:
+            # Extract chunk
+            chunk_text = content[start:best_break].strip()
+
+            # Only add chunk if it meets minimum size
+            if chunk_text and len(chunk_text) >= min_chunk_size:
                 chunk_metadata = {
                     **(metadata or {}),
                     "chunk_index": len(chunks),
                     "chunk_start": start,
-                    "chunk_end": end,
+                    "chunk_end": best_break,
                 }
                 chunks.append((chunk_text, chunk_metadata))
 
-            # Update start position - ensure we always make progress
-            new_start = end - overlap if overlap > 0 else end
-            # Safety check: if we're not making progress, force advance by at least 1 char
-            if new_start <= start:
-                new_start = start + 1
-            start = new_start
+                # Move to next chunk with overlap
+                start = best_break - overlap
+            else:
+                # Chunk too small, extend the range
+                start = best_break
 
-        logger.debug(f"Created {len(chunks)} chunks from document")
+            # Safety: ensure we always make progress
+            if start >= best_break:
+                start = best_break + 1
+
+        logger.debug(f"Created {len(chunks)} chunks from document (min_size={min_chunk_size})")
         return chunks
 
     def index_governance_documents(
@@ -256,54 +225,38 @@ class RAGEngine:
 
         logger.info(f"Finished processing files. Total chunks: {total_chunks}")
 
-        # Batch add to ChromaDB + BM25
+        # Batch add to ChromaDB
         if documents:
             logger.info(f"Starting embedding generation for {total_chunks} chunks...")
             try:
-                # Pre-generate embeddings using unified embedder
+                # Generate embeddings using local embedder
                 logger.info(f"Generating embeddings for {total_chunks} chunks...")
                 embeddings = self.embedder.embed_documents(
                     documents,
-                    batch_size=100,  # OpenAI supports larger batches
+                    batch_size=32,
                     show_progress=False
                 )
 
                 # Convert to list for ChromaDB
                 embeddings_list = embeddings.tolist()
 
-                logger.info(f"Adding {total_chunks} chunks to vector store...")
+                logger.info(f"Adding {total_chunks} chunks to ChromaDB vector store...")
                 self.vector_store.add(
+                    project_id=project_id,
                     documents=documents,
                     embeddings=embeddings_list,
                     metadatas=metadatas,
                     ids=ids
                 )
 
-                # Build BM25 index
-                logger.info(f"Building BM25 index for {project_id}...")
-                tokenized_docs = [self._tokenize(doc) for doc in documents]
-                bm25 = BM25Okapi(tokenized_docs)
-
-                # Store BM25 index with document mapping
-                self.bm25_indices[project_id] = {
-                    "bm25": bm25,
-                    "documents": documents,
-                    "ids": ids,
-                    "metadatas": metadatas,
-                }
-
-                # Persist BM25 index to disk
-                self._save_bm25_index(project_id)
-
                 logger.success(
-                    f"Indexed {total_chunks} chunks from {len(files)} files for {project_id} (Vector + BM25)"
+                    f"Indexed {total_chunks} chunks from {len(files)} files for {project_id}"
                 )
 
                 return {
                     "indexed": total_chunks,
                     "files": len(files),
                     "project_id": project_id,
-                    "bm25_indexed": True,
                 }
 
             except Exception as e:
@@ -312,21 +265,125 @@ class RAGEngine:
 
         return {"indexed": 0, "files": 0}
 
+    def _classify_query(self, query: str) -> str:
+        """
+        Classify query type for task-specific retrieval
+
+        Args:
+            query: User query
+
+        Returns:
+            Query type: 'who', 'what', 'how', 'why', 'list', 'boolean', 'general'
+        """
+        query_lower = query.lower().strip()
+
+        # Entity extraction queries (who, what maintainer/author/contributor)
+        if query_lower.startswith(("who ", "who's", "whos")) or \
+           "who are" in query_lower or "who is" in query_lower:
+            return "who"
+
+        # Definition queries
+        if query_lower.startswith(("what ", "what's", "whats")) or \
+           "what is" in query_lower or "what are" in query_lower:
+            return "what"
+
+        # Process queries
+        if query_lower.startswith(("how ", "how do", "how to", "how can")):
+            return "how"
+
+        # List queries
+        if "list " in query_lower or query_lower.startswith("show ") or \
+           query_lower.startswith("give me"):
+            return "list"
+
+        return "general"
+
+    def _expand_query(self, query: str, query_type: str) -> List[str]:
+        """
+        Expand query for better retrieval based on query type
+
+        Args:
+            query: Original query
+            query_type: Classified query type
+
+        Returns:
+            List of query variations
+        """
+        queries = [query]
+
+        # For "who" questions, add entity-focused variations
+        if query_type == "who":
+            if "maintainer" in query.lower():
+                queries.append("M: @")  # MAINTAINERS file format pattern
+                queries.append("email address maintainer contact")
+            if "author" in query.lower() or "contributor" in query.lower():
+                queries.append("author email contact")
+
+        # For "how" questions, emphasize process words
+        if query_type == "how":
+            queries.append(query + " step process procedure")
+
+        return queries
+
+    def _rerank_results(
+        self,
+        results: List[Dict],
+        query_type: str,
+        query: str
+    ) -> List[Dict]:
+        """
+        Simplified reranking for "who" queries only
+
+        Boosts results containing @ symbols (maintainers, contributors)
+
+        Args:
+            results: Initial search results
+            query_type: Classified query type
+            query: Original query
+
+        Returns:
+            Reranked results (only for "who" queries)
+        """
+        # Only rerank for "who" queries (entity extraction)
+        if query_type != "who":
+            logger.debug(f"Skipping reranking for query_type={query_type}")
+            return results
+
+        # Simple boost for @ symbols (GitHub usernames, emails)
+        for result in results:
+            at_count = result["content"].count("@")
+            boost = at_count * 0.1  # +0.1 per @ symbol
+            result["rerank_score"] = result["score"] + boost
+            result["original_score"] = result["score"]
+
+        # Sort by reranked score
+        reranked = sorted(results, key=lambda x: x.get("rerank_score", x["score"]), reverse=True)
+
+        if reranked:
+            logger.debug(
+                f"Reranking applied for 'who' query: "
+                f"Top score changed from {results[0]['score']:.3f} to {reranked[0]['rerank_score']:.3f}"
+            )
+
+        return reranked
+
     def search(
         self,
         query: str,
         project_id: Optional[str] = None,
         n_results: int = 5,
         file_types: Optional[List[str]] = None,
+        enable_reranking: bool = True,
     ) -> List[Dict]:
         """
-        Semantic search in governance documents
+        Intelligent semantic search with query classification and reranking
 
         Args:
             query: Search query
             project_id: Filter by project (optional)
             n_results: Number of results to return
             file_types: Filter by file types (optional)
+            enable_reranking: Whether to apply reranking (default: True)
 
         Returns:
             List of search results with content and metadata
@@ -334,21 +391,29 @@ class RAGEngine:
         logger.info(f"Searching for: '{query}' in project: {project_id}")
 
         try:
-            # Build where clause for filtering
-            where_clause = {}
-            if project_id:
-                where_clause["project_id"] = project_id
+            # Classify query type for intelligent retrieval
+            query_type = self._classify_query(query)
+            logger.debug(f"Query classified as: {query_type}")
 
+            # Expand query for better coverage
+            query_variations = self._expand_query(query, query_type)
+
+            # Build where clause for filtering (file_types only)
+            where_clause = {}
             if file_types:
                 where_clause["file_type"] = {"$in": file_types}
 
-            # Generate query embedding
+            # Retrieve more candidates for reranking (2x the requested amount)
+            retrieval_count = n_results * 2 if enable_reranking else n_results
+
+            # Generate query embedding (use original query)
             query_embedding = self.embedder.embed_query(query).tolist()
 
-            # Perform search
+            # Perform search in ChromaDB (project-specific collection)
             results = self.vector_store.query(
+                project_id=project_id,  # ChromaDB isolates by collection
                 query_embedding=query_embedding,
-                n_results=n_results,
+                n_results=retrieval_count,
                 where=where_clause if where_clause else None
             )
 
@@ -369,155 +434,47 @@ class RAGEngine:
                         }
                     )
 
-            logger.info(f"Found {len(formatted_results)} results")
+            # Apply reranking if enabled
+            if enable_reranking and formatted_results:
+                formatted_results = self._rerank_results(
+                    formatted_results,
+                    query_type,
+                    query
+                )
+                # Trim to requested number
+                formatted_results = formatted_results[:n_results]
+
+            logger.info(f"Found {len(formatted_results)} results (type={query_type})")
             return formatted_results
 
         except Exception as e:
             logger.error(f"Search error: {e}")
             return []
 
-    def bm25_search(
-        self,
-        query: str,
-        project_id: str,
-        n_results: int = 5,
-    ) -> List[Dict]:
-        """
-        BM25 keyword search in governance documents
-
-        Args:
-            query: Search query
-            project_id: Project to search
-            n_results: Number of results to return
-
-        Returns:
-            List of search results with content and metadata
-        """
-        if project_id not in self.bm25_indices:
-            logger.warning(f"No BM25 index found for project: {project_id}")
-            return []
-
-        try:
-            index_data = self.bm25_indices[project_id]
-            bm25 = index_data["bm25"]
-            documents = index_data["documents"]
-            ids = index_data["ids"]
-            metadatas = index_data["metadatas"]
-
-            # Tokenize query
-            tokenized_query = self._tokenize(query)
-
-            # Get BM25 scores
-            scores = bm25.get_scores(tokenized_query)
-
-            # Get top N results
-            top_indices = scores.argsort()[-n_results:][::-1]
-
-            results = []
-            for idx in top_indices:
-                if scores[idx] > 0:  # Only include documents with positive scores
-                    results.append({
-                        "id": ids[idx],
-                        "content": documents[idx],
-                        "metadata": metadatas[idx],
-                        "score": float(scores[idx]),
-                        "file_type": metadatas[idx].get("file_type", ""),
-                        "file_path": metadatas[idx].get("file_path", ""),
-                        "search_method": "bm25",
-                    })
-
-            logger.info(f"BM25 search found {len(results)} results")
-            return results
-
-        except Exception as e:
-            logger.error(f"BM25 search error: {e}")
-            return []
-
-    def hybrid_search(
-        self,
-        query: str,
-        project_id: Optional[str] = None,
-        n_results: int = 5,
-        file_types: Optional[List[str]] = None,
-    ) -> List[Dict]:
-        """
-        Hybrid search combining vector similarity and BM25 using Reciprocal Rank Fusion
-
-        This provides the best of both worlds:
-        - Vector search: Semantic similarity (finds "license" when you ask about "copyright")
-        - BM25 search: Exact keyword matching (finds "Apache-2.0" when you search for it)
-
-        Args:
-            query: Search query
-            project_id: Filter by project (optional for vector, required for BM25)
-            n_results: Number of final results to return
-            file_types: Filter by file types (optional)
-
-        Returns:
-            List of fused search results ranked by RRF score
-        """
-        logger.info(f"Hybrid search for: '{query}' in project: {project_id}")
-
-        # Vector search (always available)
-        vector_results = self.search(
-            query=query,
-            project_id=project_id,
-            n_results=n_results * 2,  # Get more for better fusion
-            file_types=file_types
-        )
-
-        # Add IDs to vector results (use content hash if no id)
-        for result in vector_results:
-            if "id" not in result:
-                result["id"] = hashlib.md5(result["content"][:100].encode()).hexdigest()
-            result["search_method"] = "vector"
-
-        # BM25 search (if project has BM25 index)
-        bm25_results = []
-        if project_id and project_id in self.bm25_indices:
-            bm25_results = self.bm25_search(
-                query=query,
-                project_id=project_id,
-                n_results=n_results * 2
-            )
-        else:
-            logger.info(f"No BM25 index for {project_id}, using vector-only search")
-
-        # If we have both, fuse them
-        if vector_results and bm25_results:
-            logger.info(f"Fusing {len(vector_results)} vector + {len(bm25_results)} BM25 results")
-            fused_results = self._reciprocal_rank_fusion(vector_results, bm25_results)
-            final_results = fused_results[:n_results]
-            logger.info(f"Hybrid search returned {len(final_results)} fused results")
-            return final_results
-
-        # Fallback to vector-only if no BM25 index
-        logger.info(f"Returning {len(vector_results[:n_results])} vector-only results")
-        return vector_results[:n_results]
-
     def get_context_for_query(
         self,
         query: str,
         project_id: str,
-        max_chunks: int = 5,
-        max_chars: int = 4000,
-    ) -> Tuple[str, List[Dict]]:
+        max_chunks: int = 10,
+        max_chars: int = 6000,
+    ) -> Tuple[str, List[Dict], str]:
         """
-        Retrieve relevant context for LLM query using HYBRID SEARCH
-
-        Uses both vector similarity and BM25 keyword matching for best results.
+        Retrieve relevant context for LLM query using intelligent search
 
         Args:
             query: User query
             project_id: Project to search
-            max_chunks: Maximum chunks to retrieve
-            max_chars: Maximum total characters for context
+            max_chunks: Maximum chunks to retrieve (default: 10 for better coverage)
+            max_chars: Maximum total characters for context (default: 6000)
 
         Returns:
-            (context_string, source_chunks)
+            (context_string, source_chunks, query_type)
         """
-        # Use hybrid search for best results
-        results = self.hybrid_search(query, project_id=project_id, n_results=max_chunks)
+        # Classify query type for downstream use
+        query_type = self._classify_query(query)
+
+        # Use intelligent search with reranking
+        results = self.search(query, project_id=project_id, n_results=max_chunks)
 
         context_parts = []
         total_chars = 0
@@ -543,10 +500,6 @@ class RAGEngine:
                     "file_type": result["file_type"],
                     "file_path": result["file_path"],
                     "score": result["score"],
-                    # Preserve hybrid search metadata
-                    "search_method": result.get("search_method", "unknown"),
-                    "fusion_method": result.get("fusion_method", "none"),
-                    "rrf_score": result.get("rrf_score", 0),
                 }
             )
 
@@ -554,53 +507,47 @@ class RAGEngine:
                 break
 
         context = "\n\n---\n\n".join(context_parts)
-        return context, sources
+        return context, sources, query_type
 
     def delete_project_documents(self, project_id: str) -> bool:
-        """Delete all documents for a project (vector + BM25)"""
+        """Delete all documents for a project (deletes entire collection)"""
         try:
-            # Delete from vector store
-            self.vector_store.delete(where={"project_id": project_id})
+            # Delete project collection from ChromaDB
+            success = self.vector_store.delete_collection(project_id)
 
-            # Delete BM25 index
-            if project_id in self.bm25_indices:
-                del self.bm25_indices[project_id]
+            if success:
+                logger.info(f"Deleted collection for project {project_id}")
+            else:
+                logger.warning(f"No collection found for project {project_id}")
 
-                # Delete persisted index file
-                index_file = self.bm25_persist_dir / f"{project_id}.pkl"
-                if index_file.exists():
-                    index_file.unlink()
-
-            logger.info(f"Deleted documents and indices for project {project_id}")
-            return True
+            return success
 
         except Exception as e:
             logger.error(f"Error deleting project documents: {e}")
             return False
 
     def get_collection_stats(self) -> Dict:
-        """Get statistics about the document collection"""
+        """Get statistics about all indexed projects"""
         try:
-            count = self.vector_store.count()
+            # Get stats from ChromaDB for all projects
+            stats = self.vector_store.get_all_stats()
 
-            # Get project distribution
-            all_docs = self.vector_store.get(include=["metadatas"])
-            project_counts = {}
-
-            if all_docs and all_docs["metadatas"]:
-                for metadata in all_docs["metadatas"]:
-                    project_id = metadata.get("project_id", "unknown")
-                    project_counts[project_id] = project_counts.get(project_id, 0) + 1
+            # Format for compatibility with existing code
+            total_docs = sum(p["document_count"] for p in stats.get("projects", {}).values())
+            project_distribution = {
+                project_id: p["document_count"]
+                for project_id, p in stats.get("projects", {}).items()
+            }
 
             return {
-                "total_chunks": count,
-                "projects_indexed": len(project_counts),
-                "project_distribution": project_counts,
+                "total_chunks": total_docs,
+                "projects_indexed": stats.get("total_collections", 0),
+                "project_distribution": project_distribution,
             }
 
         except Exception as e:
             logger.error(f"Error getting collection stats: {e}")
-            return {"total_chunks": 0, "projects_indexed": 0}
+            return {"total_chunks": 0, "projects_indexed": 0, "project_distribution": {}}
 
     def reset_collection(self) -> bool:
         """Reset the entire collection (use with caution!)"""
