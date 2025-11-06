@@ -136,12 +136,24 @@ CRITICAL INSTRUCTIONS:
 1. Answer ONLY using the commit data shown below
 2. DO NOT make up or invent information
 3. Include specific details (commit SHAs, author names, dates, files, messages)
-4. Provide comprehensive answers with all relevant data points
-5. For statistical questions, include numbers and context
-6. For list questions, provide the full requested list with supporting details
+4. Provide comprehensive, well-formatted answers with all relevant data points
+5. For statistical questions, include numbers, percentages, and context
+6. For list questions, provide the COMPLETE requested list with supporting details
 7. If the data doesn't answer the question, say "The commit data doesn't contain this information"
 
-RESPONSE LENGTH: Provide complete, informative answers. Include all relevant commits/data with details.
+FORMATTING REQUIREMENTS:
+- For "top N" queries: Provide exactly N items in numbered list format
+- For "latest" queries: Show full commit details including SHA, author, date, message
+- For trend questions: Analyze the data, provide numbers, and draw conclusions
+- For file queries: Count/list files with context about changes
+- For author queries: Include commit counts and provide GitHub usernames/emails
+
+RESPONSE STRUCTURE FOR DIFFERENT QUERY TYPES:
+→ "Who are top contributors?" → "Based on the provided commits data, the top N contributors by commit count are:\n\n1. [Name] with [X] commits\n2. [Name] with [X] commits..."
+→ "Latest commits?" → "The [N] latest commits are:\n\n1. [SHA]\n   Author: [Name] ([Email])\n   Date: [Date]\n   Message: [Message]\n\n2. [Next commit]..."
+→ "Has activity increased?" → "Based on commit data analysis: [State finding]. Over the past [period], there were [X] commits compared to [Y] in the previous period."
+
+RESPONSE LENGTH: Provide complete, well-structured answers with ALL requested items and details. Do not truncate lists.
 """,
             "issues": """
 TASK: ANALYZE ISSUES DATA - Answer questions about repository issues
@@ -150,12 +162,26 @@ CRITICAL INSTRUCTIONS:
 1. Answer ONLY using the issues data shown below
 2. DO NOT make up or invent information
 3. Include specific details (issue numbers, titles, users, states, dates, comment counts)
-4. Provide comprehensive answers with all relevant data points
-5. For statistical questions, include numbers and context
-6. For list questions, provide the full requested list with supporting details
+4. Provide comprehensive, well-formatted answers with all relevant data points
+5. For statistical questions, include numbers, percentages, and trends
+6. For list questions, provide the COMPLETE requested list with supporting details
 7. If the data doesn't answer the question, say "The issues data doesn't contain this information"
 
-RESPONSE LENGTH: Provide complete, informative answers. Include all relevant issues/data with details.
+FORMATTING REQUIREMENTS:
+- For "top N" queries: Provide exactly N issues in numbered list format with full details
+- For "most recent" queries: Sort by date and provide complete issue information
+- For "longest open" queries: Calculate duration and list oldest issues with creation dates
+- For pattern/theme questions: Analyze all visible data and identify recurring topics
+- For status queries: Provide counts and percentages (e.g., "62 open (10.7%), 580 closed (89.3%)")
+- For reporter queries: List unique contributors with their issue counts
+
+RESPONSE STRUCTURE FOR DIFFERENT QUERY TYPES:
+→ "Highest comment count?" → "The top [N] issues with the highest comment counts are:\n\n1. Issue #[NUM]: [Title]\n   Comments: [X] | State: [STATE] | Created: [DATE]\n   Reporter: [USER]\n\n2. [Next issue]..."
+→ "Longest open issues?" → "The issues that have been open the longest are:\n\n1. Issue #[NUM] (open since [DATE], [X] days)\n   Title: [Title]\n   Reporter: [USER]\n\n2. [Next issue]..."
+→ "Recurring themes?" → "Based on analysis of [X] issues, the recurring themes are:\n\n- **[Theme 1]**: [Count] issues ([percentage]%) - Examples: #[NUM], #[NUM]\n- **[Theme 2]**: [Count] issues..."
+→ "Most active reporters?" → "The most active issue reporters are:\n\n1. [USER]: [X] issues reported\n2. [USER]: [X] issues reported..."
+
+RESPONSE LENGTH: Provide complete, well-structured answers with ALL requested items and full details. Do not truncate lists or omit information.
 """,
             "general": """
 TASK: GENERAL INFORMATION RETRIEVAL
@@ -186,13 +212,20 @@ RESPONSE LENGTH: Match the question's complexity. Provide enough detail for comp
 8. NEVER invent locations or states (like "CA", "NY", "TX")
 9. If asked for "updated" issues but data only has "created" dates, say: "The data shows recently created issues, not recently updated"
 10. Only use issue numbers, titles, and usernames that appear verbatim in the data below
+11. If asked for "N items", provide EXACTLY N items, no more, no less
+12. Include ALL available details: issue numbers, complete titles, reporter usernames, states, dates, comment counts
+13. For analysis questions, examine ALL visible issues and provide comprehensive insights
+14. Use structured formatting (numbered lists, bullet points, tables) for readability
 """
             elif query_type == "commits":
                 extra_rules = """
 6. NEVER invent commit SHAs or author names
-7. If asked for "top contributors" and you see names with counts, LIST THEM
-8. If asked about "files" and you see filenames, COUNT or LIST THEM
-9. Do not be overly conservative - if data is visible, extract it
+7. If asked for "top contributors" and you see names with counts, LIST ALL OF THEM with counts
+8. If asked for "N items", provide EXACTLY N items, no more, no less
+9. If asked about "files" and you see filenames, COUNT or LIST THEM ALL
+10. Include ALL available details: full SHAs (not truncated), complete emails, exact dates, commit messages
+11. Do not be overly conservative - if data is clearly visible in the CSV, extract and present it
+12. Use structured formatting (numbered lists, bullet points) for readability
 """
             else:
                 extra_rules = ""

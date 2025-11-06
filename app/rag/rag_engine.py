@@ -267,36 +267,139 @@ class RAGEngine:
 
     def _classify_query(self, query: str) -> str:
         """
-        Classify query type for task-specific retrieval
+        Intelligent query classification using LLM (Llama 3.2 8B)
+
+        Classifies queries into detailed sub-categories for optimal document routing:
+        - who: Entity extraction (maintainers, contributors)
+        - what_project_description: General project overview → prioritize README
+        - what_sustainability: Sustainability goals/metrics → multi-source analysis
+        - what_main_issue: Current/major issues → issues analysis + summarization
+        - what_describe: Contextual descriptions → adaptive routing
+        - what: Generic "what" questions
+        - how: Process/procedure questions
+        - list: List/enumeration questions
+        - general: Other queries
 
         Args:
             query: User query
 
         Returns:
-            Query type: 'who', 'what', 'how', 'why', 'list', 'boolean', 'general'
+            Detailed query type string
         """
         query_lower = query.lower().strip()
 
-        # Entity extraction queries (who, what maintainer/author/contributor)
+        # Fast path: Simple keyword-based classification for common patterns
+        # This avoids LLM overhead for obvious cases
+
+        # Entity extraction queries (who)
         if query_lower.startswith(("who ", "who's", "whos")) or \
            "who are" in query_lower or "who is" in query_lower:
             return "who"
 
-        # Definition queries
-        if query_lower.startswith(("what ", "what's", "whats")) or \
-           "what is" in query_lower or "what are" in query_lower:
-            return "what"
-
-        # Process queries
+        # Process queries (how)
         if query_lower.startswith(("how ", "how do", "how to", "how can")):
             return "how"
 
         # List queries
-        if "list " in query_lower or query_lower.startswith("show ") or \
-           query_lower.startswith("give me"):
+        if query_lower.startswith(("list ", "show me all", "give me all")):
             return "list"
 
+        # Intelligent classification for complex "what" and "describe" queries
+        # Use LLM for nuanced understanding
+        if query_lower.startswith(("what ", "what's", "whats")) or \
+           "what is" in query_lower or "what are" in query_lower or \
+           "describe" in query_lower or "give me" in query_lower:
+
+            # Use LLM for intelligent sub-classification
+            llm_classification = self._intelligent_classify_what_query(query)
+            if llm_classification:
+                return llm_classification
+
+            # Fallback to generic "what"
+            return "what"
+
         return "general"
+
+    def _intelligent_classify_what_query(self, query: str) -> str:
+        """
+        Use Llama 3.2 8B to intelligently classify nuanced "what" and descriptive queries
+
+        This method leverages the LLM to understand query intent beyond simple keywords,
+        enabling sophisticated routing for OSS sustainability, issues, and commit analysis.
+
+        Args:
+            query: User query
+
+        Returns:
+            Specific classification: what_project_description, what_sustainability,
+            what_main_issue, what_describe, or empty string for fallback
+        """
+        from app.models.llm_client import LLMClient
+
+        try:
+            llm = LLMClient()
+
+            classification_prompt = f"""You are a query intent classifier for an Open Source Software analysis system.
+
+Given a user query, classify it into ONE of these categories:
+
+1. PROJECT_DESCRIPTION - Query asks for general project overview, purpose, or "what this project does/is"
+   Examples: "What is this project?", "What does this project do?", "Tell me about this project"
+
+2. SUSTAINABILITY - Query asks about sustainability goals, practices, metrics, or long-term health
+   Examples: "What are the sustainability goals?", "What is the sustainability of this project?",
+            "Describe the project's sustainability practices", "How sustainable is this project?"
+
+3. MAIN_ISSUE - Query asks about the primary/main/biggest issue, problem, or current concern
+   Examples: "What is the main issue?", "What is the biggest problem?", "What are the major issues?"
+
+4. DESCRIBE - Query asks to describe something specific (not project overview, sustainability, or main issue)
+   Examples: "Describe the latest issue", "Give me a description of the contribution process",
+            "Describe how testing works"
+
+5. OTHER - Query doesn't fit above categories (generic "what" questions)
+   Examples: "What is a pull request?", "What files are in the repo?", "What license?"
+
+USER QUERY: "{query}"
+
+Respond with ONLY the category name (PROJECT_DESCRIPTION, SUSTAINABILITY, MAIN_ISSUE, DESCRIBE, or OTHER).
+Do not include any explanation or additional text."""
+
+            # Use fast, low-temperature generation for classification
+            result = llm.generate_simple(classification_prompt, temperature=0.05, max_tokens=20)
+
+            classification = result.strip().upper()
+            logger.debug(f"LLM classified query as: {classification}")
+
+            # Map LLM output to internal classification codes
+            classification_map = {
+                "PROJECT_DESCRIPTION": "what_project_description",
+                "SUSTAINABILITY": "what_sustainability",
+                "MAIN_ISSUE": "what_main_issue",
+                "DESCRIBE": "what_describe",
+                "OTHER": "what"
+            }
+
+            return classification_map.get(classification, "")
+
+        except Exception as e:
+            logger.warning(f"LLM classification failed, using fallback: {e}")
+            # Fallback to keyword-based heuristics
+            query_lower = query.lower()
+
+            if any(kw in query_lower for kw in ["sustainability", "sustainable", "long-term health", "project health"]):
+                return "what_sustainability"
+
+            if any(kw in query_lower for kw in ["main issue", "biggest issue", "major issue", "primary issue", "biggest problem"]):
+                return "what_main_issue"
+
+            if "describe" in query_lower or "description" in query_lower:
+                return "what_describe"
+
+            if any(kw in query_lower for kw in ["what is this project", "what does this project do", "what this project", "project overview"]):
+                return "what_project_description"
+
+            return ""
 
     def _expand_query(self, query: str, query_type: str) -> List[str]:
         """
@@ -332,9 +435,17 @@ class RAGEngine:
         query: str
     ) -> List[Dict]:
         """
-        Simplified reranking for "who" queries only
+        Intelligent reranking with document type boosting for all query types
 
-        Boosts results containing @ symbols (maintainers, contributors)
+        Applies query-specific boosts to prioritize relevant document types:
+        - who: Boost CODEOWNERS/MAINTAINERS with @ symbols
+        - what_project_description: Strongly boost README, penalize LICENSE
+        - what_sustainability: Boost README, CONTRIBUTING, governance docs
+        - what_main_issue: Boost recent documents (for issues analysis)
+        - what_describe: Contextual boosting based on query keywords
+        - what: Moderate README boost
+        - how: Boost CONTRIBUTING, how-to docs
+        - general: Minimal boosting
 
         Args:
             results: Initial search results
@@ -342,27 +453,121 @@ class RAGEngine:
             query: Original query
 
         Returns:
-            Reranked results (only for "who" queries)
+            Reranked results with adjusted scores
         """
-        # Only rerank for "who" queries (entity extraction)
-        if query_type != "who":
-            logger.debug(f"Skipping reranking for query_type={query_type}")
+        if not results:
             return results
 
-        # Simple boost for @ symbols (GitHub usernames, emails)
+        query_lower = query.lower()
+
+        # Apply query-type specific boosting
         for result in results:
-            at_count = result["content"].count("@")
-            boost = at_count * 0.1  # +0.1 per @ symbol
-            result["rerank_score"] = result["score"] + boost
-            result["original_score"] = result["score"]
+            file_type = result.get("file_type", "").lower()
+            content = result.get("content", "")
+            original_score = result["score"]
+            boost = 0.0
+
+            # 1. WHO queries: Boost entity-rich documents
+            if query_type == "who":
+                at_count = content.count("@")
+                boost += at_count * 0.1  # +0.1 per @ symbol
+                if file_type in ["codeowners", "maintainers", "authors"]:
+                    boost += 0.2
+
+            # 2. PROJECT DESCRIPTION queries: Strongly prioritize README
+            elif query_type == "what_project_description":
+                if file_type == "readme":
+                    boost += 0.5  # Strong boost for README
+                elif file_type == "license":
+                    boost -= 0.3  # Penalize LICENSE (not project description)
+                elif file_type == "contributing":
+                    boost += 0.1  # Minor boost for context
+
+            # 3. SUSTAINABILITY queries: Multi-source analysis
+            elif query_type == "what_sustainability":
+                # Sustainability info could be in multiple documents
+                if file_type == "readme":
+                    boost += 0.3  # Often contains sustainability sections
+                elif file_type == "contributing":
+                    boost += 0.25  # Contribution processes indicate sustainability
+                elif file_type in ["governance", "code_of_conduct"]:
+                    boost += 0.2  # Governance indicates organizational sustainability
+                elif file_type in ["security", "support"]:
+                    boost += 0.15  # Security/support practices
+
+                # Content-based boosting for sustainability keywords
+                sustainability_keywords = ["sustainability", "long-term", "roadmap", "future", "maintenance", "support", "community"]
+                keyword_count = sum(1 for kw in sustainability_keywords if kw in content.lower())
+                boost += keyword_count * 0.05
+
+            # 4. MAIN ISSUE queries: Boost governance/issue-related docs
+            elif query_type == "what_main_issue":
+                # These queries will often need CSV data, but boost relevant docs
+                if file_type in ["issues", "known_issues", "changelog"]:
+                    boost += 0.3
+                elif file_type == "readme":
+                    boost += 0.15  # READMEs sometimes list major issues
+
+                # Content-based boosting
+                issue_keywords = ["issue", "problem", "bug", "concern", "challenge"]
+                keyword_count = sum(1 for kw in issue_keywords if kw in content.lower())
+                boost += keyword_count * 0.05
+
+            # 5. DESCRIBE queries: Adaptive boosting based on what's being described
+            elif query_type == "what_describe":
+                # Parse what's being described from the query
+                if "issue" in query_lower or "bug" in query_lower:
+                    if file_type in ["issues", "changelog", "known_issues"]:
+                        boost += 0.3
+                elif "contribut" in query_lower or "pr" in query_lower or "pull request" in query_lower:
+                    if file_type == "contributing":
+                        boost += 0.4
+                    elif file_type == "readme":
+                        boost += 0.15
+                elif "test" in query_lower or "testing" in query_lower:
+                    if file_type in ["contributing", "readme", "testing"]:
+                        boost += 0.3
+                elif "security" in query_lower:
+                    if file_type == "security":
+                        boost += 0.4
+                    elif file_type in ["contributing", "readme"]:
+                        boost += 0.15
+                else:
+                    # Generic description - slight README boost
+                    if file_type == "readme":
+                        boost += 0.2
+
+            # 6. Generic WHAT queries: Moderate README boost
+            elif query_type == "what":
+                if file_type == "readme":
+                    boost += 0.2
+                elif file_type == "license":
+                    boost -= 0.1  # Slight penalty for LICENSE on generic questions
+
+            # 7. HOW queries: Boost procedural documents
+            elif query_type == "how":
+                if file_type == "contributing":
+                    boost += 0.3
+                elif file_type == "readme":
+                    boost += 0.15
+                elif file_type in ["development", "building", "setup"]:
+                    boost += 0.2
+
+            # Apply the boost
+            result["rerank_score"] = original_score + boost
+            result["original_score"] = original_score
+            result["boost_applied"] = boost
 
         # Sort by reranked score
         reranked = sorted(results, key=lambda x: x.get("rerank_score", x["score"]), reverse=True)
 
-        if reranked:
+        # Log reranking details
+        if reranked and query_type != "general":
+            top_result = reranked[0]
             logger.debug(
-                f"Reranking applied for 'who' query: "
-                f"Top score changed from {results[0]['score']:.3f} to {reranked[0]['rerank_score']:.3f}"
+                f"Reranking for '{query_type}': "
+                f"Top doc changed: {results[0].get('file_type')} (score={results[0]['score']:.3f}) → "
+                f"{top_result.get('file_type')} (score={top_result['rerank_score']:.3f}, boost={top_result.get('boost_applied', 0):.3f})"
             )
 
         return reranked
@@ -461,6 +666,9 @@ class RAGEngine:
         """
         Retrieve relevant context for LLM query using intelligent search
 
+        Enhanced with multi-source retrieval for complex queries like sustainability
+        and main issue analysis.
+
         Args:
             query: User query
             project_id: Project to search
@@ -473,7 +681,13 @@ class RAGEngine:
         # Classify query type for downstream use
         query_type = self._classify_query(query)
 
-        # Use intelligent search with reranking
+        # For complex queries, use multi-source retrieval
+        if query_type in ["what_sustainability", "what_main_issue"]:
+            return self._get_multi_source_context(
+                query, project_id, query_type, max_chunks, max_chars
+            )
+
+        # Standard single-query search for other query types
         results = self.search(query, project_id=project_id, n_results=max_chunks)
 
         context_parts = []
@@ -499,7 +713,7 @@ class RAGEngine:
                 {
                     "file_type": result["file_type"],
                     "file_path": result["file_path"],
-                    "score": result["score"],
+                    "score": result.get("score", 0),
                 }
             )
 
@@ -507,6 +721,122 @@ class RAGEngine:
                 break
 
         context = "\n\n---\n\n".join(context_parts)
+        return context, sources, query_type
+
+    def _get_multi_source_context(
+        self,
+        query: str,
+        project_id: str,
+        query_type: str,
+        max_chunks: int = 10,
+        max_chars: int = 6000,
+    ) -> Tuple[str, List[Dict], str]:
+        """
+        Multi-source context retrieval for complex queries
+
+        Performs multiple targeted searches and combines results intelligently.
+        Used for sustainability and main issue queries that benefit from
+        analyzing multiple document types together.
+
+        Args:
+            query: User query
+            project_id: Project to search
+            query_type: Classified query type (what_sustainability or what_main_issue)
+            max_chunks: Maximum chunks total
+            max_chars: Maximum total characters
+
+        Returns:
+            (context_string, source_chunks, query_type)
+        """
+        logger.info(f"Using multi-source retrieval for {query_type}")
+
+        all_results = []
+
+        if query_type == "what_sustainability":
+            # Sustainability: search across multiple angles
+            search_queries = [
+                ("sustainability governance", ["governance", "code_of_conduct", "contributing"]),
+                ("community contribution maintenance", ["contributing", "readme"]),
+                ("roadmap future long-term", ["readme", "governance"]),
+            ]
+
+            for search_query, preferred_file_types in search_queries:
+                results = self.search(
+                    search_query,
+                    project_id=project_id,
+                    n_results=4,
+                    file_types=preferred_file_types if preferred_file_types else None
+                )
+                all_results.extend(results)
+
+        elif query_type == "what_main_issue":
+            # Main issue: search for issue indicators
+            search_queries = [
+                ("critical issue problem bug", ["issues", "known_issues", "changelog"]),
+                ("major concern challenge", ["readme", "issues"]),
+                (query, None),  # Original query as well
+            ]
+
+            for search_query, preferred_file_types in search_queries:
+                results = self.search(
+                    search_query,
+                    project_id=project_id,
+                    n_results=4,
+                    file_types=preferred_file_types if preferred_file_types else None
+                )
+                all_results.extend(results)
+
+        # Deduplicate and re-rank combined results
+        seen_ids = set()
+        unique_results = []
+        for result in all_results:
+            result_id = f"{result.get('file_type')}:{result.get('file_path')}"
+            if result_id not in seen_ids:
+                seen_ids.add(result_id)
+                unique_results.append(result)
+
+        # Apply intelligent reranking to combined results
+        reranked_results = self._rerank_results(unique_results, query_type, query)
+
+        # Limit to max_chunks
+        final_results = reranked_results[:max_chunks]
+
+        # Build context
+        context_parts = []
+        total_chars = 0
+        sources = []
+
+        for result in final_results:
+            content = result["content"]
+            if total_chars + len(content) > max_chars:
+                remaining = max_chars - total_chars
+                if remaining > 100:
+                    content = content[:remaining] + "..."
+                else:
+                    break
+
+            context_parts.append(
+                f"[{result['file_type'].upper()}] {result['file_path']}\n{content}"
+            )
+            total_chars += len(content)
+
+            sources.append(
+                {
+                    "file_type": result["file_type"],
+                    "file_path": result["file_path"],
+                    "score": result.get("score", 0),
+                }
+            )
+
+            if total_chars >= max_chars:
+                break
+
+        context = "\n\n---\n\n".join(context_parts)
+        logger.info(
+            f"Multi-source context built: {len(sources)} sources, "
+            f"{total_chars} chars from {len(set(s['file_type'] for s in sources))} file types"
+        )
+
         return context, sources, query_type
 
     def delete_project_documents(self, project_id: str) -> bool:

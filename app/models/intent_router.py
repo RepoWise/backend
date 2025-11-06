@@ -157,9 +157,39 @@ class IntentRouter:
         # STAGE 0: OUT-OF-SCOPE DETECTION (highest priority)
         # =================================================================
         # Detect conversational/meta questions not about the project
-        if any(pattern in query_lower for pattern in self.OUT_OF_SCOPE_PATTERNS):
-            logger.info(f"🎯 Stage 0: Out-of-scope → OUT_OF_SCOPE")
-            return "OUT_OF_SCOPE", 0.99
+        # BUT: Allow greetings if followed by actual project questions
+
+        # Strip common greetings from the beginning to extract the core query
+        greeting_prefixes = ["hello", "hi there", "hey", "good morning", "good afternoon", "hi"]
+        cleaned_query = query_lower.strip()
+
+        # Remove greeting prefixes (with optional comma/punctuation)
+        for greeting in greeting_prefixes:
+            if cleaned_query.startswith(greeting):
+                # Remove greeting and any following comma/punctuation
+                cleaned_query = cleaned_query[len(greeting):].lstrip(" ,!.")
+                break
+
+        # If after removing greeting, there's substantial content (>5 words or contains project keywords)
+        # then it's NOT out of scope - it's a polite question about the project
+        if cleaned_query != query_lower:  # Greeting was removed
+            word_count = len(cleaned_query.split())
+            has_substance = word_count >= 5 or any(kw in cleaned_query for kw in
+                list(self.GOVERNANCE_KEYWORDS) + list(self.COMMITS_KEYWORDS) + list(self.ISSUES_KEYWORDS))
+
+            if has_substance:
+                logger.info(f"🎯 Stage 0: Greeting detected but query has substance → Continue classification")
+                # Continue to next stage - don't classify as OUT_OF_SCOPE
+                query_lower = cleaned_query  # Use cleaned query for further classification
+            else:
+                # Just a greeting with no real question
+                logger.info(f"🎯 Stage 0: Pure greeting → OUT_OF_SCOPE")
+                return "OUT_OF_SCOPE", 0.99
+        else:
+            # No greeting detected, check for other out-of-scope patterns
+            if any(pattern in query_lower for pattern in self.OUT_OF_SCOPE_PATTERNS):
+                logger.info(f"🎯 Stage 0: Out-of-scope → OUT_OF_SCOPE")
+                return "OUT_OF_SCOPE", 0.99
 
         # If no project context, likely general
         if not has_project_context:

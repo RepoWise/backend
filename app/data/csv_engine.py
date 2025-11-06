@@ -138,41 +138,96 @@ class CSVDataEngine:
             "row_count": len(df)
         }
 
-        # Create prompt for LLM to generate pandas code
-        prompt = f"""You are a pandas expert. Generate ONLY the pandas code to answer this query.
+        # Create comprehensive prompt for LLM to generate pandas code
+        # Add data-type-specific column hints
+        if data_type == "commits":
+            common_cols_hint = "Common columns: commit_sha, name, email, date, message, filename, lines_added, lines_deleted"
+        else:  # issues
+            common_cols_hint = "Common columns: issue_num, title, issue_state (open/closed), user_login, created_at, updated_at, comment_count"
+
+        prompt = f"""You are a pandas expert analyzing OSS project data. Generate ONLY the pandas code to answer this query.
 
 Query: {query}
+Data type: {data_type}
 
 DataFrame name: df
 DataFrame schema:
 - Columns: {', '.join(schema_info['columns'])}
 - Row count: {schema_info['row_count']}
 - Data types: {schema_info['dtypes']}
+{common_cols_hint}
 
-IMPORTANT RULES:
-1. Return ONLY executable pandas code, NO explanations
+CRITICAL RULES:
+1. Return ONLY executable pandas code, NO explanations or markdown
 2. The code must assign the final result to a variable called 'result'
-3. Use .head({limit}) to limit results
+3. Use .head({limit}) to limit results appropriately
 4. For aggregations, use groupby() and agg() methods
 5. Always reset_index() after groupby if needed
 6. DO NOT use exec(), eval(), or any dangerous operations
 7. DO NOT import anything - pandas is already imported as pd
+8. Handle NaN/missing values gracefully with dropna() or fillna()
+9. For string filtering, use .str.contains() with case=False, na=False
+10. For time-based queries, ensure datetime columns are parsed
 
-Example for "Which files have highest lines added":
+EXAMPLES BY QUERY TYPE:
+
+# Category A: Ranking (top/most/highest)
+"Who are the top 5 contributors by commit count?"
+result = df.groupby(['name', 'email']).size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
+"Which files have the most lines added?"
 result = df.groupby('filename')['lines_added'].sum().sort_values(ascending=False).head({limit}).reset_index()
 
-Now generate code for the query. Return ONLY the code, nothing else:"""
+# Category B: Filtered Aggregation (content-based filtering)
+"Who contributed to documentation?"
+result = df[df['message'].str.contains('doc|documentation|readme', case=False, na=False)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='doc_commits')
+
+"How many bug fix commits per contributor?"
+result = df[df['message'].str.contains('fix|bug', case=False, na=False)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='bug_fixes')
+
+# Category C: Statistical Analysis (averages, medians, ratios)
+"What is the average commit size?"
+result = df[['lines_added', 'lines_deleted']].sum().to_frame(name='total').T
+result['avg_commit_size'] = (result['total'].sum()) / len(df)
+result = result[['avg_commit_size']]
+
+"What is the ratio of lines added to deleted?"
+total_added = df['lines_added'].sum()
+total_deleted = df['lines_deleted'].sum()
+result = pd.DataFrame({{'lines_added': [total_added], 'lines_deleted': [total_deleted], 'ratio': [total_added / total_deleted if total_deleted > 0 else 0]}})
+
+# Category D: Temporal Analysis (time-based grouping)
+"Commits per month in last year?"
+result = df[df['date'] >= pd.Timestamp.now() - pd.DateOffset(months=12)].groupby(df['date'].dt.to_period('M')).size().reset_index(name='commits')
+
+"Which day of week has most commits?"
+result = df.groupby(df['date'].dt.day_name()).size().sort_values(ascending=False).reset_index(name='commits')
+
+# Category E: Pattern Detection (file co-modification, outliers)
+"Which commit modified the most files?"
+result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'message': 'first'}}).sort_values('filename', ascending=False).head({limit}).reset_index()
+
+"Most frequently modified files?"
+result = df.groupby('filename').size().sort_values(ascending=False).head({limit}).reset_index(name='modification_count')
+
+# Category F: Issues-specific
+"Issues with highest comment count?"
+result = df.nlargest({limit}, 'comment_count')[['issue_num', 'title', 'comment_count', 'issue_state', 'user_login']]
+
+"Average time to close issues?"
+closed_issues = df[df['issue_state'] == 'closed'].copy()
+closed_issues['time_to_close'] = (pd.to_datetime(closed_issues['updated_at']) - pd.to_datetime(closed_issues['created_at'])).dt.days
+result = pd.DataFrame({{'avg_days_to_close': [closed_issues['time_to_close'].mean()]}})
+
+Now generate pandas code for the query "{query}". Return ONLY the code, nothing else:"""
 
         try:
             # Call LLM to generate code using configured model
-            response = self.llm_client.chat.completions.create(
-                model=settings.ollama_model,  # Use configured 3B model for better reasoning
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,  # Deterministic for code generation
-                max_tokens=500
-            )
-
-            generated_code = response.choices[0].message.content.strip()
+            generated_code = self.llm_client.generate_simple(
+                prompt,
+                max_tokens=500,
+                temperature=0.0  # Deterministic for code generation
+            ).strip()
 
             # Extract code from markdown blocks if present
             if "```python" in generated_code:
@@ -428,24 +483,35 @@ Now generate code for the query. Return ONLY the code, nothing else:"""
 
         # Determine query type from natural language (expanded keyword matching)
         if data_type == "commits":
-            # File aggregation queries - use LLM for complex aggregations
-            if any(kw in query_lower for kw in ["highest total", "most lines", "largest", "biggest"]) and any(kw in query_lower for kw in ["file", "files", "lines added"]):
-                logger.info(f"Detected file aggregation query, using LLM-powered pandas generation")
-                df, summary = self.query_with_llm(project_id, query, "commits", limit=10)
-            # Top contributors query
-            elif any(kw in query_lower for kw in ["top", "most active", "most commits", "contributor", "committer"]) and "file" not in query_lower:
-                df, summary = self.query_commits(project_id, "top_contributors", limit=5)
+            # SIMPLE QUERIES - These can work with predefined methods on sample data
             # Latest commits
-            elif any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]):
-                df, summary = self.query_commits(project_id, "latest", limit=5)
-            # File modifications (individual files, not aggregated)
-            elif any(kw in query_lower for kw in ["file", "files", "modified"]) and "highest total" not in query_lower:
-                df, summary = self.query_commits(project_id, "by_file", limit=10)
-            # Stats
-            elif any(kw in query_lower for kw in ["stat", "statistics", "how many", "count", "total"]) and "file" not in query_lower:
+            if any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]) and not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every"]):
+                df, summary = self.query_commits(project_id, "latest", limit=10)
+            # Basic stats (uses predefined aggregation)
+            elif query_lower in ["stats", "statistics", "summary"] or (any(kw in query_lower for kw in ["how many total", "total commits", "total authors"]) and "average" not in query_lower):
                 df, summary = self.query_commits(project_id, "stats")
+
+            # COMPLEX QUERIES - These need full dataset access via LLM pandas generation
+            # Aggregation queries (average, sum, patterns, trends, comparisons)
+            elif any(kw in query_lower for kw in ["average", "mean", "median", "sum", "total lines", "pattern", "trend", "trending", "compare", "ratio", "percentage"]):
+                logger.info(f"Detected aggregation query requiring full dataset, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+            # Filtered queries (who did X, what files with Y, etc.)
+            elif any(kw in query_lower for kw in ["documentation", "doc", "readme", "test", "bug", "feature", "fix", "focus on", "responsible for", "added or removed"]):
+                logger.info(f"Detected filtered query requiring full dataset, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+            # Top/most queries (top contributors, most lines, etc.)
+            elif any(kw in query_lower for kw in ["top", "most", "highest", "largest", "biggest", "least", "smallest"]):
+                logger.info(f"Detected ranking query requiring full dataset, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+            # File queries
+            elif any(kw in query_lower for kw in ["file", "files", "modified"]):
+                logger.info(f"Detected file query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+            # Default: use LLM for any unclassified query to ensure correctness
             else:
-                df, summary = self.query_commits(project_id, "latest", limit=5)
+                logger.info(f"Unclassified query, using LLM-powered pandas generation for safety")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
 
         else:  # issues
             # Most commented (CHECK FIRST - specific queries take priority over stats)
@@ -471,11 +537,14 @@ Now generate code for the query. Return ONLY the code, nothing else:"""
             return summary, []
 
         # Convert DataFrame to readable text
+        # For LLM-generated queries, include more rows (up to 50)
+        # For predefined queries, limit to 20
+        max_rows = 50 if len(df) > 20 else len(df)
         context = f"{summary}\n\n"
-        context += df.to_string(index=False, max_rows=10)
+        context += df.to_string(index=False, max_rows=max_rows)
 
-        # Also return as records for citations
-        records = df.head(10).to_dict('records')
+        # Also return as records for citations (limit to reasonable size)
+        records = df.head(max_rows).to_dict('records')
 
         return context, records
 

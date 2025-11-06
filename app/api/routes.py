@@ -17,6 +17,7 @@ from app.rag.rag_engine import RAGEngine
 from app.models.llm_client import LLMClient
 from app.models.intent_router import IntentRouter
 from app.data.csv_engine import CSVDataEngine
+from app.models.question_suggester import QuestionSuggester
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ rag_engine = RAGEngine()
 llm_client = LLMClient()
 intent_router = IntentRouter()
 csv_engine = CSVDataEngine(csv_data_dir="data/csv_data", llm_client=llm_client)
+question_suggester = QuestionSuggester()
 
 # Persistent storage for dynamically added projects
 DYNAMIC_PROJECTS_FILE = Path("data/dynamic_projects.json")
@@ -178,6 +180,7 @@ class QueryResponse(BaseModel):
     response: str
     sources: List[dict]
     metadata: dict
+    suggested_questions: Optional[List[str]] = []
 
 
 # Helper functions
@@ -523,6 +526,9 @@ async def query_governance(request: QueryRequest):
     try:
         if intent == "OUT_OF_SCOPE":
             # Return a polite message for out-of-scope queries
+            # Get initial suggestions for when no query has been made
+            suggested_questions = question_suggester.get_initial_suggestions()
+
             return QueryResponse(
                 project_id=request.project_id or "general",
                 query=request.query,
@@ -533,6 +539,7 @@ async def query_governance(request: QueryRequest):
                     "confidence": confidence,
                     "data_source": "out_of_scope",
                 },
+                suggested_questions=suggested_questions,
             )
 
         elif intent == "GENERAL":
@@ -544,6 +551,9 @@ async def query_governance(request: QueryRequest):
                 temperature=request.temperature,
                 query_type="general",
             )
+
+            # Get initial suggestions for general queries
+            suggested_questions = question_suggester.get_initial_suggestions()
 
             return QueryResponse(
                 project_id=request.project_id or "general",
@@ -557,16 +567,19 @@ async def query_governance(request: QueryRequest):
                     "llm_model": llm_response.get("model"),
                     "generation_time_ms": llm_response.get("total_duration_ms"),
                 },
+                suggested_questions=suggested_questions,
             )
 
         # For project-specific intents, verify project exists
         if not request.project_id:
+            suggested_questions = question_suggester.get_initial_suggestions()
             return QueryResponse(
                 project_id="none",
                 query=request.query,
                 response="Please select a project first to query project-specific information.",
                 sources=[],
                 metadata={"intent": intent, "error": "no_project_selected"},
+                suggested_questions=suggested_questions,
             )
 
         project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None)
@@ -584,12 +597,14 @@ async def query_governance(request: QueryRequest):
             )
 
             if not context:
+                suggested_questions = question_suggester.get_initial_suggestions()
                 return QueryResponse(
                     project_id=request.project_id,
                     query=request.query,
                     response="No relevant governance documents found for this project. Please make sure the project has been crawled first.",
                     sources=[],
                     metadata={"intent": intent, "has_context": False},
+                    suggested_questions=suggested_questions,
                 )
 
             # Build conversation history
@@ -607,6 +622,14 @@ async def query_governance(request: QueryRequest):
                 query_type=query_type,
             )
 
+            # Generate contextual follow-up questions
+            suggested_questions = question_suggester.suggest_questions(
+                current_query=request.query,
+                intent=intent,
+                answer=llm_response.get("response", ""),
+                project_context={"project_name": project["name"], "project_id": request.project_id}
+            )
+
             return QueryResponse(
                 project_id=request.project_id,
                 query=request.query,
@@ -620,6 +643,7 @@ async def query_governance(request: QueryRequest):
                     "llm_model": llm_response.get("model"),
                     "generation_time_ms": llm_response.get("total_duration_ms"),
                 },
+                suggested_questions=suggested_questions,
             )
 
         elif intent in ["COMMITS", "ISSUES"]:
@@ -629,6 +653,7 @@ async def query_governance(request: QueryRequest):
             # Check if CSV data is available
             available_data = csv_engine.get_available_data(request.project_id)
             if not available_data.get(data_type):
+                suggested_questions = question_suggester.get_initial_suggestions()
                 return QueryResponse(
                     project_id=request.project_id,
                     query=request.query,
@@ -639,6 +664,7 @@ async def query_governance(request: QueryRequest):
                         "data_source": "csv",
                         "error": f"no_{data_type}_data"
                     },
+                    suggested_questions=suggested_questions,
                 )
 
             # Get context from CSV engine
@@ -649,12 +675,19 @@ async def query_governance(request: QueryRequest):
             )
 
             if not context or len(records) == 0:
+                suggested_questions = question_suggester.suggest_questions(
+                    current_query=request.query,
+                    intent=intent,
+                    answer=None,
+                    project_context={"project_name": project["name"], "project_id": request.project_id}
+                )
                 return QueryResponse(
                     project_id=request.project_id,
                     query=request.query,
                     response=f"No {data_type} data found matching your query.",
                     sources=[],
                     metadata={"intent": intent, "data_source": "csv"},
+                    suggested_questions=suggested_questions,
                 )
 
             # Check if this is an aggregation query (how many, count, total, etc.)
@@ -682,6 +715,14 @@ async def query_governance(request: QueryRequest):
                         "content": f"Total: {total}, Open: {open_count}, Closed: {closed_count}, Reporters: {unique_reporters}"
                     }]
 
+                    # Generate contextual follow-up questions
+                    suggested_questions = question_suggester.suggest_questions(
+                        current_query=request.query,
+                        intent=intent,
+                        answer=llm_response_text,
+                        project_context={"project_name": project["name"], "project_id": request.project_id}
+                    )
+
                     return QueryResponse(
                         project_id=request.project_id,
                         query=request.query,
@@ -693,6 +734,7 @@ async def query_governance(request: QueryRequest):
                             "query_type": "aggregation",
                             "stats": first_record
                         },
+                        suggested_questions=suggested_questions,
                     )
 
                 elif data_type == "commits" and "total_commits" in first_record:
@@ -710,6 +752,14 @@ async def query_governance(request: QueryRequest):
                         "content": f"Total commits: {total}, Authors: {unique_authors}, Files: {files_changed}"
                     }]
 
+                    # Generate contextual follow-up questions
+                    suggested_questions = question_suggester.suggest_questions(
+                        current_query=request.query,
+                        intent=intent,
+                        answer=llm_response_text,
+                        project_context={"project_name": project["name"], "project_id": request.project_id}
+                    )
+
                     return QueryResponse(
                         project_id=request.project_id,
                         query=request.query,
@@ -721,6 +771,7 @@ async def query_governance(request: QueryRequest):
                             "query_type": "aggregation",
                             "stats": first_record
                         },
+                        suggested_questions=suggested_questions,
                     )
 
             # For non-aggregation queries, use LLM to generate response
@@ -750,6 +801,14 @@ async def query_governance(request: QueryRequest):
                         "content": f"{record.get('title', 'N/A')} by {record.get('user_login', 'N/A')}"
                     })
 
+            # Generate contextual follow-up questions
+            suggested_questions = question_suggester.suggest_questions(
+                current_query=request.query,
+                intent=intent,
+                answer=llm_response.get("response", ""),
+                project_context={"project_name": project["name"], "project_id": request.project_id}
+            )
+
             return QueryResponse(
                 project_id=request.project_id,
                 query=request.query,
@@ -763,6 +822,7 @@ async def query_governance(request: QueryRequest):
                     "llm_model": llm_response.get("model"),
                     "generation_time_ms": llm_response.get("total_duration_ms"),
                 },
+                suggested_questions=suggested_questions,
             )
 
     except HTTPException:
