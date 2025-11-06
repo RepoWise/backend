@@ -215,6 +215,231 @@ Include:
 
 Cite release documentation or governance documents."""
 
+    GOVERNANCE_TIMEFRAME_EXPECTATIONS = """You are explaining response time expectations for issues and pull requests.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT:
+{context}
+
+Provide clear expectations:
+1. **Issue Response Time**: How quickly should reporters expect acknowledgment?
+2. **PR Review Time**: Expected time for initial review
+3. **Resolution Timeline**: Typical time to close issues or merge PRs
+4. **SLA Commitments**: Any formal service level agreements
+5. **Exceptions**: Circumstances that might delay responses (holidays, major releases)
+
+Include:
+- Whether these are guidelines or strict requirements
+- Who is responsible for meeting these timelines (maintainers, community)
+- What to do if timelines are not met
+
+If not documented, state: "Response timeframes are not explicitly documented. Contributors should check recent issue/PR activity for typical patterns."
+
+Cite CONTRIBUTING.md or governance documentation."""
+
+    GOVERNANCE_ONBOARDING = """You are guiding new contributors through the onboarding process.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT:
+{context}
+
+Provide comprehensive onboarding guide:
+1. **Getting Started**: First steps (fork, clone, setup environment)
+2. **Finding First Issue**: "good first issue" labels, mentorship programs
+3. **Making First Contribution**: Small, low-risk changes to start
+4. **Getting Help**: Where to ask questions (Slack, Discord, forums)
+5. **Learning Resources**: Docs, tutorials, architecture guides
+
+Include:
+- Links to relevant documentation
+- Tips for successful first contributions
+- Common mistakes to avoid
+- How to get code review feedback
+
+Frame as: "Here's how to get started contributing effectively within our governance model."
+
+Cite README.md, CONTRIBUTING.md, or onboarding documentation."""
+
+    GOVERNANCE_DOCUMENTATION_GAPS = """You are identifying flagged documentation gaps based on community feedback.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT (may include issue data):
+{context}
+
+Analyze:
+1. **Reported Gaps**: What documentation is contributors asking for?
+2. **Issue Labels**: Count of issues labeled "documentation", "docs needed"
+3. **Common Themes**: Repeated requests (e.g., "API docs missing", "setup unclear")
+4. **Priority**: Which gaps affect most contributors?
+5. **Status**: Are these being addressed?
+
+Provide actionable insights:
+- List specific documentation requests
+- Frequency/urgency of each request
+- Potential impact on contributor experience
+- Links to relevant issues
+
+Example:
+"Documentation Gaps Identified:
+- API documentation (flagged in 8 issues) - High priority
+- Deployment guide (flagged in 5 issues) - Medium priority
+- Architecture overview (flagged in 3 issues) - Low priority"
+
+Use issue data from CSV or governance discussions."""
+
+    GOVERNANCE_RISK_DETECTION = """You are identifying pull requests or issues at risk of falling through the cracks.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT (may include issue/PR data):
+{context}
+
+Identify at-risk items:
+1. **Stale PRs**: Open for >30 days with no recent activity
+2. **Unassigned High-Priority Issues**: Critical bugs without owners
+3. **No Response Issues**: Opened but never acknowledged
+4. **Abandoned Work**: PRs from contributors who disappeared
+5. **Merge Conflicts**: PRs with conflicts preventing merge
+
+For each category:
+- Count of at-risk items
+- Specific examples (issue/PR numbers)
+- Potential causes (maintainer bandwidth, unclear requirements)
+- Recommended actions
+
+Example:
+"At-Risk Items:
+- 12 stale PRs (no activity >30 days)
+- 4 high-priority bugs unassigned
+- 7 issues opened >14 days with no maintainer response
+
+Recommendation: Triage oldest stale PRs first, assign critical bugs."
+
+Use CSV data or governance insights."""
+
+    GOVERNANCE_COMMUNITY_HEALTH = """You are assessing whether community health metrics are improving or declining.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT (may include trends data):
+{context}
+
+Analyze trends across:
+1. **Commit Activity**: Increasing, stable, or decreasing?
+2. **Issue Volume**: More issues opened vs. closed?
+3. **Review Responsiveness**: Faster or slower PR reviews?
+4. **Contributor Retention**: Are contributors staying or leaving?
+5. **Response Times**: Getting better or worse?
+
+Provide health assessment:
+- **Overall Trend**: Improving, stable, or declining
+- **Strengths**: Positive indicators (e.g., "Issues resolved quickly")
+- **Concerns**: Red flags (e.g., "Declining commit activity")
+- **Recommendations**: Actions to maintain/improve health
+
+Example:
+"Community Health Assessment:
+✅ Strengths: Issue response time improved 30%, close rate at 78%
+⚠️ Concerns: Commit activity down 15% last quarter, 3 core contributors inactive
+📊 Overall: Stable with some concerns. Recommend re-engagement outreach."
+
+Use data from commits, issues, and governance docs."""
+
+    GOVERNANCE_REVIEW_PROCESS = """You are explaining the detailed code review process.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT:
+{context}
+
+Describe the review workflow:
+1. **Who Reviews**: Core maintainers, domain experts, or anyone?
+2. **Review Criteria**: What reviewers check (code quality, tests, docs)
+3. **Approval Requirements**: How many approvals needed to merge?
+4. **Iteration Process**: How to address feedback, re-request review
+5. **Merge Permissions**: Who can merge (author, reviewer, maintainer)?
+
+Include:
+- Expected review turnaround time
+- How to request specific reviewers
+- What to do if review stalls
+- Auto-merge rules (if any CI checks required)
+
+Example structure:
+"Review Process:
+1. PR opened → Automatic CI checks run
+2. Assigned to domain expert or any available maintainer
+3. Reviewer checks: code quality, test coverage, documentation
+4. Changes requested → Author addresses → Re-review
+5. 2 approvals required → Maintainer merges"
+
+Cite CONTRIBUTING.md or review guidelines."""
+
+    GOVERNANCE_PR_SIZE_GUIDELINES = """You are explaining guidelines for pull request size and scope.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT:
+{context}
+
+Clarify PR best practices:
+1. **Size Limits**: Recommended lines changed (e.g., <500 lines ideal)
+2. **Scope**: One logical change per PR (avoid "kitchen sink" PRs)
+3. **Breaking Changes**: Extra requirements for breaking API changes
+4. **Large PR Process**: When large PRs necessary, what extra steps required?
+5. **Splitting Strategy**: How to break large features into smaller PRs
+
+Include:
+- Why small PRs preferred (easier review, faster merge, less risk)
+- How to structure PR series (PR 1: foundation, PR 2: feature, PR 3: polish)
+- When to use feature flags for incremental delivery
+
+If not documented, provide general best practices: "Most projects prefer PRs <500 lines for reviewability."
+
+Cite CONTRIBUTING.md."""
+
+    GOVERNANCE_CONFLICT_RESOLUTION = """You are explaining how technical or interpersonal conflicts are resolved.
+
+PROJECT: {project_name}
+
+QUERY: {query}
+
+CONTEXT:
+{context}
+
+Describe conflict resolution process:
+1. **Technical Disagreements**: How to resolve design/implementation disputes
+2. **Code of Conduct**: Handling interpersonal conflicts
+3. **Escalation Path**: When maintainers can't agree, who decides?
+4. **Mediation**: Are there neutral mediators or conflict resolution procedures?
+5. **Final Authority**: Who has ultimate decision-making power (BDFL, steering committee)?
+
+Include:
+- Encouraged practices (respectful discussion, data-driven decisions)
+- Discouraged behaviors (personal attacks, stonewalling)
+- Examples of past resolutions (if available in docs)
+
+If minimal documentation, note: "Conflicts should be escalated to governance committee per standard practices."
+
+Cite CODE_OF_CONDUCT.md, GOVERNANCE.md."""
+
     # ========================================================================
     # COMMITS QUERIES - Development Activity and Contributor Metrics
     # ========================================================================
@@ -966,6 +1191,30 @@ def get_template_for_query(intent: str, query: str, query_type: str = None) -> s
 
         if any(word in query_lower for word in ["release", "manager", "schedule"]):
             return templates.GOVERNANCE_RELEASE_PROCESS
+
+        if any(word in query_lower for word in ["timeframe", "response time", "how long", "sla", "expectation"]):
+            return templates.GOVERNANCE_TIMEFRAME_EXPECTATIONS
+
+        if any(word in query_lower for word in ["onboard", "first time", "getting started", "new contributor"]):
+            return templates.GOVERNANCE_ONBOARDING
+
+        if any(word in query_lower for word in ["documentation gap", "missing docs", "flagged", "docs needed"]):
+            return templates.GOVERNANCE_DOCUMENTATION_GAPS
+
+        if any(word in query_lower for word in ["at risk", "falling through", "stale", "abandoned"]):
+            return templates.GOVERNANCE_RISK_DETECTION
+
+        if any(word in query_lower for word in ["community health", "improving", "declining", "metrics", "trend"]):
+            return templates.GOVERNANCE_COMMUNITY_HEALTH
+
+        if any(word in query_lower for word in ["review process", "approval", "merge", "iteration"]):
+            return templates.GOVERNANCE_REVIEW_PROCESS
+
+        if any(word in query_lower for word in ["pr size", "pull request size", "how big", "split"]):
+            return templates.GOVERNANCE_PR_SIZE_GUIDELINES
+
+        if any(word in query_lower for word in ["conflict", "disagree", "resolution", "escalation"]):
+            return templates.GOVERNANCE_CONFLICT_RESOLUTION
 
         # Default governance template
         return templates.GOVERNANCE_BASE
