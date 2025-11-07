@@ -203,6 +203,15 @@ result = df[df['date'] >= pd.Timestamp.now() - pd.DateOffset(months=12)].groupby
 "Which day of week has most commits?"
 result = df.groupby(df['date'].dt.day_name()).size().sort_values(ascending=False).reset_index(name='commits')
 
+"Who are the top 5 contributors this quarter?" (MUST calculate quarter start inline)
+result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, ((pd.Timestamp.now(tz='UTC').month - 1) // 3) * 3 + 1, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
+"Top contributors this month?" (MUST calculate month start inline)
+result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, pd.Timestamp.now(tz='UTC').month, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
+"Commits this year?" (MUST calculate year start inline)
+result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, 1, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
 # Category E: Pattern Detection (file co-modification, outliers)
 "Which commit modified the most files?"
 result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'message': 'first'}}).sort_values('filename', ascending=False).head({limit}).reset_index()
