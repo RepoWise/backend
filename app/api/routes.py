@@ -25,8 +25,8 @@ router = APIRouter()
 gov_extractor = GovernanceExtractor()
 rag_engine = RAGEngine()
 llm_client = LLMClient()
-# Use LLM-based intent classification by default (97.8% accuracy vs 67.8% keyword-based)
-intent_router = IntentRouter(llm_client=llm_client, use_llm_classification=True)
+# Use keyword-based intent classification (single-keyword approach, 67.8% accuracy)
+intent_router = IntentRouter(llm_client=llm_client, use_llm_classification=False)
 csv_engine = CSVDataEngine(csv_data_dir="data/csv_data", llm_client=llm_client)
 question_suggester = QuestionSuggester()
 
@@ -140,7 +140,7 @@ class QueryRequest(BaseModel):
     temperature: float = 0.3
     stream: bool = False
     conversation_history: Optional[List[ConversationMessage]] = None
-    use_llm_classification: bool = True  # Use LLM-based intent classification by default (97.8% accuracy)
+    use_llm_classification: bool = False  # Use keyword-based intent classification (single-keyword approach, 67.8% accuracy)
 
 
 class SearchRequest(BaseModel):
