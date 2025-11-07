@@ -54,7 +54,7 @@ class IntentRouter:
         "list all", "show all", "show me", "display",
         "top", "most", "least", "highest", "lowest", "best", "worst",
         "latest", "recent", "newest", "oldest",
-        "which", "what are the"
+        "which", "what are the", "ratio", "vs"
     }
 
     # Keywords for each intent type
@@ -69,13 +69,15 @@ class IntentRouter:
         "commit", "committer", "committed", "commit message",
         "author", "file changed", "lines added", "lines deleted",
         "recent commit", "latest commit", "modification",
-        "who changed", "when changed", "changelog", "most active", "top contributor"
+        "who changed", "when changed", "changelog", "most active", "top contributor",
+        "files did", "which files", "modified the most", "files have been"
     }
 
     ISSUES_KEYWORDS = {
         "issue", "bug", "feature request", "problem", "report", "ticket",
         "open issue", "closed issue", "issue state", "reporter", "comment",
-        "discussion", "enhancement", "fix", "resolved"
+        "discussion", "enhancement", "fix", "resolved",
+        "ratio of", "how quickly", "closure rate", "being closed"
     }
 
     GENERAL_INDICATORS = {
@@ -100,15 +102,17 @@ class IntentRouter:
         "what do you know", "what is your purpose"
     }
 
-    def __init__(self, llm_client=None):
+    def __init__(self, llm_client=None, use_llm_classification=False):
         """
         Initialize intent router
 
         Args:
             llm_client: Optional LLM client for advanced classification
+            use_llm_classification: If True, use LLM for primary classification; if False, use keyword-based
         """
         self.llm_client = llm_client
-        logger.info("Intent Router initialized")
+        self.use_llm_classification = use_llm_classification
+        logger.info(f"Intent Router initialized (mode: {'LLM' if use_llm_classification else 'keyword-based'})")
 
     def is_aggregation_query(self, query: str) -> bool:
         """
@@ -133,9 +137,103 @@ class IntentRouter:
 
         return any(pattern in query_lower for pattern in aggregation_patterns)
 
-    def classify_intent(self, query: str, has_project_context: bool = True) -> Tuple[str, float]:
+    def classify_intent_llm(self, query: str, has_project_context: bool = True) -> Tuple[str, float]:
         """
-        Hierarchical intent classification with LLM fallback
+        LLM-based intent classification using prompt engineering
+
+        Args:
+            query: User query
+            has_project_context: Whether user has selected a project
+
+        Returns:
+            (intent_type, confidence)
+            intent_type: GENERAL, GOVERNANCE, COMMITS, ISSUES, OUT_OF_SCOPE
+            confidence: 0.0-1.0
+        """
+        if not self.llm_client:
+            logger.error("LLM client not available for classification")
+            return "GENERAL", 0.3
+
+        # Build classification prompt with examples
+        prompt = f"""You are an expert query intent classifier for an open source software governance analysis system.
+
+Classify the user's query into EXACTLY ONE category:
+
+**GOVERNANCE**: Questions about project governance, policies, contribution processes, maintainers, leadership, code of conduct, licenses, security policies, reporting procedures, decision-making processes.
+Examples:
+- "Who are the maintainers?"
+- "How do I report a bug?" (process, not statistics)
+- "What is the code of conduct?"
+- "How are maintainers elected?"
+- "Can I use this project commercially?"
+
+**COMMITS**: Questions about commit history, code changes, file modifications, contributors, authorship, commit statistics, code activity, developer behavior patterns based on commits.
+Examples:
+- "Who are the top contributors by commit count?"
+- "Which files have been modified the most?"
+- "Show me the latest commits"
+- "Who contributed to documentation?" (based on files changed)
+- "Which contributors focus on bug fixes vs. new features?" (analyzing commit messages)
+- "SELECT commits WHERE author = 'X'"
+- "COUNT total commits"
+
+**ISSUES**: Questions about bug reports, feature requests, issue tracking, tickets, issue statistics, issue reporters, community engagement through issues.
+Examples:
+- "How many issues are open vs closed?"
+- "Who are the most active issue reporters?"
+- "What are the most commented issues?"
+- "Who requests the most features?" (based on issues filed)
+- "SELECT issues WHERE state = 'open'"
+- "COUNT open issues"
+
+**GENERAL**: Generic programming/tech questions NOT specific to the selected project. Educational content about software concepts, Git, programming languages, best practices.
+Examples:
+- "What is open source software?"
+- "How does Git version control work?"
+- "What is the difference between Git and GitHub?"
+- "Explain machine learning basics"
+- "What are best practices for code reviews?"
+
+**OUT_OF_SCOPE**: Conversational queries about the assistant itself, greetings with no substantive question, meta-questions not about the project.
+Examples:
+- "Hello" (no question)
+- "Who are you?"
+- "What can you do?"
+
+**Key Decision Rules**:
+1. If query asks "how to [do something]" regarding contribution/reporting → GOVERNANCE (process)
+2. If query asks "how many/count/show me" regarding commits/files/code → COMMITS (data)
+3. If query asks "how many/count/show me" regarding issues/bugs/tickets → ISSUES (data)
+4. If query mentions "bug fixes" in context of commit messages or code changes → COMMITS
+5. If query mentions "bug reports" in context of issues filed → ISSUES
+6. If query is generic knowledge not about the specific project → GENERAL
+7. SQL-like queries with "SELECT/COUNT/SUM" should route to COMMITS or ISSUES based on table name
+
+User Query: "{query}"
+Project Context: {"User has selected a project" if has_project_context else "No project selected"}
+
+Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OUT_OF_SCOPE"""
+
+        try:
+            llm_response = self.llm_client.generate_simple(prompt, max_tokens=20, temperature=0.1)
+            llm_intent = llm_response.strip().upper()
+
+            # Validate LLM response
+            valid_intents = ["GOVERNANCE", "COMMITS", "ISSUES", "GENERAL", "OUT_OF_SCOPE"]
+            if llm_intent in valid_intents:
+                confidence = 0.90  # High confidence for LLM classification
+                logger.info(f"✅ LLM classified: '{query}' → {llm_intent} ({confidence:.2f})")
+                return llm_intent, confidence
+            else:
+                logger.warning(f"⚠️  LLM returned invalid intent: {llm_intent}, falling back to keyword-based")
+                return self.classify_intent_keyword(query, has_project_context)
+        except Exception as e:
+            logger.error(f"❌ LLM classification failed: {e}, falling back to keyword-based")
+            return self.classify_intent_keyword(query, has_project_context)
+
+    def classify_intent_keyword(self, query: str, has_project_context: bool = True) -> Tuple[str, float]:
+        """
+        Keyword-based hierarchical intent classification
 
         Stage 1: Procedure detection (GOVERNANCE priority)
         Stage 2: Statistical detection (COMMITS/ISSUES)
@@ -212,13 +310,9 @@ class IntentRouter:
         # =================================================================
         if has_stats:
             # Determine if stats query is about commits or issues based on context
-            commits_context = any(kw in query_lower for kw in [
-                "commit", "author", "contributor", "file changed", "lines added",
-                "lines deleted", "changelog", "code change"
-            ])
-            issues_context = any(kw in query_lower for kw in [
-                "issue", "bug", "ticket", "feature request", "problem", "report"
-            ])
+            # Use the full keyword sets for better coverage
+            commits_context = any(kw in query_lower for kw in self.COMMITS_KEYWORDS)
+            issues_context = any(kw in query_lower for kw in self.ISSUES_KEYWORDS)
 
             if commits_context and not issues_context:
                 logger.info(f"🎯 Stage 2: Statistical → COMMITS")
@@ -325,6 +419,23 @@ Respond with ONLY ONE WORD: GOVERNANCE, COMMITS, ISSUES, or GENERAL"""
         else:
             logger.info(f"🤷 No clear match, defaulting to GENERAL")
             return "GENERAL", 0.40
+
+    def classify_intent(self, query: str, has_project_context: bool = True) -> Tuple[str, float]:
+        """
+        Main entry point for intent classification
+        Routes to LLM-based or keyword-based classification based on configuration
+
+        Args:
+            query: User query
+            has_project_context: Whether user has selected a project
+
+        Returns:
+            (intent_type, confidence)
+        """
+        if self.use_llm_classification:
+            return self.classify_intent_llm(query, has_project_context)
+        else:
+            return self.classify_intent_keyword(query, has_project_context)
 
     def _count_keywords(self, text: str, keywords: set) -> Tuple[float, list]:
         """

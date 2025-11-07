@@ -1,5 +1,5 @@
 """
-Core configuration module for OSSPREY-GOV-POC
+Core configuration module for OSS Forensics
 """
 from typing import List
 from pydantic_settings import BaseSettings
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     )
 
     # Application Configuration
-    app_name: str = Field(default="OSSPREY-GOV-POC", env="APP_NAME")
+    app_name: str = Field(default="OSS Forensics", env="APP_NAME")
     app_version: str = Field(default="1.0.0", env="APP_VERSION")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     debug: bool = Field(default=False, env="DEBUG")
