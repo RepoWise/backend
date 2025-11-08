@@ -212,6 +212,143 @@ def parse_github_url(url: str) -> tuple:
     raise ValueError(f'Invalid GitHub URL: {url}')
 
 
+def _auto_discover_and_load_csvs(owner: str, repo: str, project_id: str) -> dict:
+    """
+    Auto-discover and load CSV files from scraped directory
+
+    Expected directory structure:
+    data/scraped/{owner}-{repo}/ (case-insensitive)
+        ├── commits.csv (or *commits*.csv)
+        └── issues.csv (or *issues*.csv)
+
+    Args:
+        owner: GitHub owner/organization name (original case)
+        repo: Repository name (original case)
+        project_id: Project identifier (lowercased)
+
+    Returns:
+        dict with loading results
+    """
+    import os
+    import glob
+
+    # Construct scraped directory path using absolute path
+    # This ensures correct resolution when running in ThreadPoolExecutor
+    # __file__ is /backend/app/api/routes.py, so .parent.parent.parent.parent gets us to project root
+    scraped_base = Path(__file__).parent.parent.parent.parent / "data" / "scraped"
+    scraped_base = scraped_base.resolve()  # Resolve to absolute path
+
+    # First, try to find the directory case-insensitively
+    folder_patterns = [
+        f"{owner}-{repo}",  # Original case (e.g., DataONEorg-dataone-web)
+        f"{owner.lower()}-{repo.lower()}",  # Lowercase (e.g., dataoneorg-dataone-web)
+    ]
+
+    scraped_dir = None
+    for folder_name in folder_patterns:
+        candidate = scraped_base / folder_name
+        if candidate.exists():
+            scraped_dir = candidate
+            logger.info(f"📂 Found CSV directory: {scraped_dir}")
+            break
+
+    # If not found with exact names, try case-insensitive search on case-sensitive filesystems
+    if scraped_dir is None and scraped_base.exists():
+        for item in scraped_base.iterdir():
+            if item.is_dir() and item.name.lower() == f"{owner.lower()}-{repo.lower()}":
+                scraped_dir = item
+                logger.info(f"📂 Found CSV directory (case-insensitive): {scraped_dir}")
+                break
+
+    if scraped_dir is None:
+        scraped_dir = scraped_base / f"{owner}-{repo}"  # Use original case as fallback
+
+    result = {
+        "csv_directory": str(scraped_dir),
+        "commits_loaded": False,
+        "issues_loaded": False,
+        "commits_count": 0,
+        "issues_count": 0,
+        "message": ""
+    }
+
+    # Check if directory exists
+    if not scraped_dir.exists():
+        result["message"] = f"CSV directory not found: {scraped_dir}"
+        logger.warning(f"📂 CSV directory not found for {project_id}: {scraped_dir}")
+        return result
+
+    logger.info(f"📂 Looking for CSVs in: {scraped_dir}")
+
+    # Look for commits CSV (match both "commit" and "commits")
+    commits_patterns = [
+        str(scraped_dir / "*commit*.csv"),  # Matches "commit" or "commits"
+        str(scraped_dir / "commits.csv"),
+    ]
+    commits_csv = None
+    for pattern in commits_patterns:
+        matches = glob.glob(pattern)
+        if matches:
+            commits_csv = matches[0]
+            break
+
+    # Look for issues CSV
+    issues_patterns = [
+        str(scraped_dir / "*issues*.csv"),
+        str(scraped_dir / "issues.csv"),
+    ]
+    issues_csv = None
+    for pattern in issues_patterns:
+        matches = glob.glob(pattern)
+        if matches:
+            issues_csv = matches[0]
+            break
+
+    # Load CSVs if found
+    try:
+        load_result = csv_engine.load_project_data(
+            project_id,
+            commits_path=commits_csv,
+            issues_path=issues_csv
+        )
+
+        result["commits_loaded"] = load_result.get("commits_loaded", False)
+        result["issues_loaded"] = load_result.get("issues_loaded", False)
+        result["commits_count"] = load_result.get("commits_count", 0)
+        result["issues_count"] = load_result.get("issues_count", 0)
+
+        # Save CSV paths for auto-reload
+        if result["commits_loaded"] or result["issues_loaded"]:
+            csv_paths = _load_csv_paths()
+            csv_paths[project_id] = {
+                "commits_csv_path": commits_csv,
+                "issues_csv_path": issues_csv
+            }
+            _save_csv_paths(csv_paths)
+            logger.info(f"💾 Saved CSV paths for {project_id} for auto-reload")
+
+        # Build success message
+        messages = []
+        if result["commits_loaded"]:
+            messages.append(f"✅ Loaded {result['commits_count']} commits")
+        else:
+            messages.append("⚠️  No commits CSV found")
+
+        if result["issues_loaded"]:
+            messages.append(f"✅ Loaded {result['issues_count']} issues")
+        else:
+            messages.append("⚠️  No issues CSV found")
+
+        result["message"] = " | ".join(messages)
+        logger.info(f"📊 CSV loading complete for {project_id}: {result['message']}")
+
+    except Exception as e:
+        result["message"] = f"Error loading CSVs: {str(e)}"
+        logger.error(f"❌ Error loading CSVs for {project_id}: {e}")
+
+    return result
+
+
 # Routes
 @router.get("/health")
 async def health_check():
@@ -304,9 +441,34 @@ async def add_repository(request: AddRepositoryRequest):
         dynamic_projects[project_id] = project
         _save_dynamic_projects(dynamic_projects)  # Persist to disk
 
-        # Index governance documents in RAG system
-        logger.info(f"Indexing governance documents for {project_id}")
-        index_result = rag_engine.index_governance_documents(project_id, gov_data)
+        # Run governance indexing and CSV loading in parallel for speed
+        logger.info(f"Starting parallel processing: governance indexing + CSV loading for {project_id}")
+
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Run both operations in parallel using thread pool
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both tasks to run concurrently
+            index_future = loop.run_in_executor(
+                executor,
+                rag_engine.index_governance_documents,
+                project_id,
+                gov_data
+            )
+            csv_future = loop.run_in_executor(
+                executor,
+                _auto_discover_and_load_csvs,
+                owner,
+                repo,
+                project_id
+            )
+
+            # Wait for both to complete
+            index_result, csv_result = await asyncio.gather(index_future, csv_future)
+
+        logger.info(f"✅ Parallel processing complete for {project_id}")
 
         return {
             "status": "success",
@@ -317,6 +479,7 @@ async def add_repository(request: AddRepositoryRequest):
                 "extraction_time": gov_data.get("metadata", {}).get("extraction_time_seconds", 0),
             },
             "indexing": index_result,
+            "csv_loading": csv_result,
             "summary": gov_extractor.get_extraction_summary(gov_data),
         }
 

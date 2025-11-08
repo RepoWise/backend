@@ -219,7 +219,20 @@ result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'm
 "Most frequently modified files?"
 result = df.groupby('filename').size().sort_values(ascending=False).head({limit}).reset_index(name='modification_count')
 
-# Category F: Issues-specific
+# Category F: Count Unique (distinct values)
+"How many unique contributors are there?"
+result = pd.DataFrame({{'unique_contributors': [df['name'].nunique()]}})
+
+"Count unique contributors?"
+result = pd.DataFrame({{'count': [df['name'].nunique()], 'type': ['unique contributors']}})
+
+"How many unique email addresses?"
+result = pd.DataFrame({{'unique_emails': [df['email'].nunique()]}})
+
+"Number of distinct files modified?"
+result = pd.DataFrame({{'unique_files': [df['filename'].nunique()]}})
+
+# Category G: Issues-specific
 "Issues with highest comment count?"
 result = df.nlargest({limit}, 'comment_count')[['issue_num', 'title', 'comment_count', 'issue_state', 'user_login']]
 
@@ -261,9 +274,31 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
 
             result = local_vars.get('result')
 
-            if result is None or not isinstance(result, pd.DataFrame):
-                logger.error(f"Execution did not produce a DataFrame: {type(result)}")
+            if result is None:
+                logger.error("Execution did not produce any result")
                 return pd.DataFrame(), "Query execution failed to produce results"
+
+            # Auto-wrap scalar results in a DataFrame (LLM sometimes forgets to wrap)
+            if not isinstance(result, pd.DataFrame):
+                if isinstance(result, pd.Series):
+                    # Convert Series to DataFrame
+                    result = result.to_frame()
+                    logger.info(f"Auto-converted Series to DataFrame")
+                elif isinstance(result, (int, float, str, bool)):
+                    # Wrap scalar value in a DataFrame
+                    result = pd.DataFrame([{'value': result}])
+                    logger.info(f"Auto-wrapped scalar {type(result).__name__} in DataFrame")
+                elif isinstance(result, (list, tuple)):
+                    # Wrap list/tuple in a DataFrame
+                    result = pd.DataFrame([{'value': val} for val in result])
+                    logger.info(f"Auto-wrapped {type(result).__name__} in DataFrame")
+                elif isinstance(result, dict):
+                    # Wrap dict in a DataFrame
+                    result = pd.DataFrame([result])
+                    logger.info(f"Auto-wrapped dict in DataFrame")
+                else:
+                    logger.error(f"Execution produced unsupported type: {type(result)}")
+                    return pd.DataFrame(), f"Query execution produced unsupported type: {type(result).__name__}"
 
             summary = f"LLM-generated query returned {len(result)} results"
             logger.info(f"✅ {summary}")
@@ -377,6 +412,18 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             }
             result = pd.DataFrame([stats])
             summary = f"Project statistics: {total_commits} commits by {unique_authors} authors"
+
+        elif query_type == "unique_contributors":
+            # Count unique contributors (by name or email)
+            unique_by_name = df['name'].nunique()
+            unique_by_email = df['email'].nunique()
+
+            result = pd.DataFrame([{
+                'unique_contributors_by_name': unique_by_name,
+                'unique_contributors_by_email': unique_by_email,
+                'unique_contributors': unique_by_name  # Primary metric
+            }])
+            summary = f"Unique contributors: {unique_by_name} (by name), {unique_by_email} (by email)"
 
         else:
             result = df.head(limit)
@@ -493,16 +540,19 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
         # Determine query type from natural language (expanded keyword matching)
         if data_type == "commits":
             # SIMPLE QUERIES - These can work with predefined methods on sample data
+            # Unique contributors (must be checked BEFORE aggregation queries)
+            if any(kw in query_lower for kw in ["unique contributor", "distinct contributor", "how many contributor", "number of contributor", "count contributor"]):
+                df, summary = self.query_commits(project_id, "unique_contributors")
             # Latest commits
-            if any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]) and not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every"]):
+            elif any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]) and not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every"]):
                 df, summary = self.query_commits(project_id, "latest", limit=10)
             # Basic stats (uses predefined aggregation)
             elif query_lower in ["stats", "statistics", "summary"] or (any(kw in query_lower for kw in ["how many total", "total commits", "total authors"]) and "average" not in query_lower):
                 df, summary = self.query_commits(project_id, "stats")
 
             # COMPLEX QUERIES - These need full dataset access via LLM pandas generation
-            # Aggregation queries (average, sum, patterns, trends, comparisons)
-            elif any(kw in query_lower for kw in ["average", "mean", "median", "sum", "total lines", "pattern", "trend", "trending", "compare", "ratio", "percentage"]):
+            # Aggregation queries (average, sum, patterns, trends, comparisons, unique counts)
+            elif any(kw in query_lower for kw in ["average", "mean", "median", "sum", "total lines", "pattern", "trend", "trending", "compare", "ratio", "percentage", "unique", "distinct", "nunique"]):
                 logger.info(f"Detected aggregation query requiring full dataset, using LLM-powered pandas generation")
                 df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
             # Filtered queries (who did X, what files with Y, etc.)

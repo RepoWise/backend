@@ -1,4 +1,121 @@
 {
+  "facebook-react": {
+    "id": "facebook-react",
+    "name": "react",
+    "owner": "facebook",
+    "repo": "react",
+    "description": "Custom repository: facebook/react",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/facebook/react"
+  },
+  "facebook-react-native": {
+    "id": "facebook-react-native",
+    "name": "react-native",
+    "owner": "facebook",
+    "repo": "react-native",
+    "description": "Custom repository: facebook/react-native",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/facebook/react-native"
+  },
+  "apache-superset": {
+    "id": "apache-superset",
+    "name": "superset",
+    "owner": "apache",
+    "repo": "superset",
+    "description": "Custom repository: apache/superset",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/apache/superset"
+  },
+  "google-googletest": {
+    "id": "google-googletest",
+    "name": "googletest",
+    "owner": "google",
+    "repo": "googletest",
+    "description": "Custom repository: google/googletest",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/google/googletest"
+  },
+  "google-leveldb": {
+    "id": "google-leveldb",
+    "name": "leveldb",
+    "owner": "google",
+    "repo": "leveldb",
+    "description": "Custom repository: google/leveldb",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/google/leveldb"
+  },
+  "boto-boto3": {
+    "id": "boto-boto3",
+    "name": "boto3",
+    "owner": "boto",
+    "repo": "boto3",
+    "description": "Custom repository: boto/boto3",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/boto/boto3"
+  },
+  "numpy-numpy": {
+    "id": "numpy-numpy",
+    "name": "numpy",
+    "owner": "numpy",
+    "repo": "numpy",
+    "description": "Custom repository: numpy/numpy",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/numpy/numpy"
+  },
+  "apache-airflow": {
+    "id": "apache-airflow",
+    "name": "airflow",
+    "owner": "apache",
+    "repo": "airflow",
+    "description": "Custom repository: apache/airflow",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/apache/airflow"
+  },
+  "pytorch-pytorch": {
+    "id": "pytorch-pytorch",
+    "name": "pytorch",
+    "owner": "pytorch",
+    "repo": "pytorch",
+    "description": "Custom repository: pytorch/pytorch",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/pytorch/pytorch"
+  },
+  "pandas-dev-pandas": {
+    "id": "pandas-dev-pandas",
+    "name": "pandas",
+    "owner": "pandas-dev",
+    "repo": "pandas",
+    "description": "Custom repository: pandas-dev/pandas",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/pandas-dev/pandas"
+  },
+  "apache-arrow": {
+    "id": "apache-arrow",
+    "name": "arrow",
+    "owner": "apache",
+    "repo": "arrow",
+    "description": "Custom repository: apache/arrow",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/apache/arrow"
+  },
+  "rust-lang-rust": {
+    "id": "rust-lang-rust",
+    "name": "rust",
+    "owner": "rust-lang",
+    "repo": "rust",
+    "description": "Custom repository: rust-lang/rust",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/rust-lang/rust"
+  },
+  "dicedb-dice": {
+    "id": "dicedb-dice",
+    "name": "dice",
+    "owner": "DiceDB",
+    "repo": "dice",
+    "description": "Custom repository: DiceDB/dice",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/DiceDB/dice"
+  },
   "keras-team-keras-io": {
     "id": "keras-team-keras-io",
     "name": "keras-io",
@@ -7,5 +124,59 @@
     "description": "Custom repository: keras-team/keras-io",
     "foundation": "Custom",
     "governance_url": "https://github.com/keras-team/keras-io"
+  },
+  "tensorflow-tensorflow": {
+    "id": "tensorflow-tensorflow",
+    "name": "tensorflow",
+    "owner": "tensorflow",
+    "repo": "tensorflow",
+    "description": "Custom repository: tensorflow/tensorflow",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/tensorflow/tensorflow"
+  },
+  "dataoneorg-dataone-web": {
+    "id": "dataoneorg-dataone-web",
+    "name": "dataone-web",
+    "owner": "DataONEorg",
+    "repo": "dataone-web",
+    "description": "Custom repository: DataONEorg/dataone-web",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/DataONEorg/dataone-web"
+  },
+  "llvm-llvm-project": {
+    "id": "llvm-llvm-project",
+    "name": "llvm-project",
+    "owner": "llvm",
+    "repo": "llvm-project",
+    "description": "Custom repository: llvm/llvm-project",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/llvm/llvm-project"
+  },
+  "oss-prey-ossprey-frontend-server": {
+    "id": "oss-prey-ossprey-frontend-server",
+    "name": "OSSPREY-FrontEnd-Server",
+    "owner": "OSS-PREY",
+    "repo": "OSSPREY-FrontEnd-Server",
+    "description": "Custom repository: OSS-PREY/OSSPREY-FrontEnd-Server",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/OSS-PREY/OSSPREY-FrontEnd-Server"
+  },
+  "apache-maven": {
+    "id": "apache-maven",
+    "name": "maven",
+    "owner": "apache",
+    "repo": "maven",
+    "description": "Custom repository: apache/maven",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/apache/maven"
+  },
+  "apache-kafka": {
+    "id": "apache-kafka",
+    "name": "kafka",
+    "owner": "apache",
+    "repo": "kafka",
+    "description": "Custom repository: apache/kafka",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/apache/kafka"
   }
 }

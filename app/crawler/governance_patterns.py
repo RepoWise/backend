@@ -33,13 +33,20 @@ class GovernancePatternMatcher:
         ),
         'contributing': GovernancePattern(
             category='contributing',
-            filenames=['contributing', 'contribute', 'contribution'],
+            filenames=['contributing', 'contribute', 'contribution',
+                      'contributing_guide', 'contributing-guide',
+                      'contributor_guide', 'contributor-guide',
+                      'contribution_guide', 'contribution-guide',
+                      'how_to_contribute', 'how-to-contribute',
+                      'call_for_contributions', 'call-for-contributions'],
             extensions=['.md', '.txt', '.rst', ''],
             locations=['', '.github/', 'docs/', 'community/', '.gitlab/', 'templates/']
         ),
         'code_of_conduct': GovernancePattern(
             category='code_of_conduct',
-            filenames=['code_of_conduct', 'code-of-conduct', 'coc', 'conduct'],
+            filenames=['code_of_conduct', 'code-of-conduct', 'coc', 'conduct',
+                      'contributor_covenant', 'contributor-covenant',
+                      'community_guidelines', 'community-guidelines'],
             extensions=['.md', '.txt', '.rst', ''],
             locations=['', '.github/', 'docs/', 'community/', '.gitlab/']
         ),
@@ -51,15 +58,18 @@ class GovernancePatternMatcher:
         ),
         'maintainers': GovernancePattern(
             category='maintainers',
-            filenames=['maintainers', 'codeowners', 'owners', 'committers', 'team'],
-            extensions=['.md', '.txt', ''],
+            filenames=['maintainers', 'codeowners', 'owners', 'committers', 'team',
+                      'code_owners', 'core-team', 'core_team'],
+            extensions=['.md', '.txt', '.rst', ''],
             locations=['', '.github/', 'docs/', 'community/', '.gitlab/']
         ),
         'license': GovernancePattern(
             category='license',
-            filenames=['license', 'licence', 'copying', 'notice'],
-            extensions=['.md', '.txt', ''],
-            locations=['', 'docs/']
+            filenames=['license', 'licence', 'copying', 'notice',
+                      'license-mit', 'license-apache', 'license-gpl',
+                      'licence-mit', 'licence-apache', 'licence-gpl'],
+            extensions=['', '.md', '.txt', '.rst'],  # Empty extension first to prioritize LICENSE files
+            locations=['', 'docs/', '.github/']
         ),
         'charter': GovernancePattern(
             category='charter',
@@ -93,9 +103,11 @@ class GovernancePatternMatcher:
         ),
         'authors': GovernancePattern(
             category='authors',
-            filenames=['authors', 'contributors', 'credits'],
-            extensions=['.md', '.txt', ''],
-            locations=['', 'docs/']
+            filenames=['authors', 'contributors', 'credits',
+                      'contributor_list', 'contributor-list',
+                      'contributors_list', 'contributors-list'],
+            extensions=['.md', '.txt', '.rst', ''],
+            locations=['', 'docs/', 'community/']
         ),
         'funding': GovernancePattern(
             category='funding',

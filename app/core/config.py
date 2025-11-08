@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # Ollama Configuration
     ollama_host: str = Field(default="http://localhost:11434", env="OLLAMA_HOST")
-    ollama_model: str = Field(default="qwen2.5:3b", env="OLLAMA_MODEL")  # 3B model for better reasoning and reduced hallucinations
+    ollama_model: str = Field(default="llama3.2:latest", env="OLLAMA_MODEL")  # 3B model for better reasoning and reduced hallucinations
 
     # ChromaDB Configuration
     chroma_persist_dir: str = Field(default="../chromadb", env="CHROMA_PERSIST_DIR")
@@ -132,57 +132,82 @@ FLAGSHIP_PROJECTS = [
 GOVERNANCE_FILES = {
     "governance": [
         "GOVERNANCE.md",
-        "GOVERNANCE",
-        "governance.md",
         "docs/GOVERNANCE.md",
         ".github/GOVERNANCE.md",
     ],
     "contributing": [
         "CONTRIBUTING.md",
-        "CONTRIBUTING",
-        "contributing.md",
+        "CONTRIBUTING.rst",
         "docs/CONTRIBUTING.md",
+        "docs/CONTRIBUTING.rst",
         ".github/CONTRIBUTING.md",
+        ".github/CONTRIBUTING.rst",
     ],
     "code_of_conduct": [
         "CODE_OF_CONDUCT.md",
-        "CODE-OF-CONDUCT.md",
-        "CODE_OF_CONDUCT",
-        "code_of_conduct.md",
         ".github/CODE_OF_CONDUCT.md",
+        "docs/CODE_OF_CONDUCT.md",
     ],
     "security": [
         "SECURITY.md",
-        "SECURITY",
-        "security.md",
-        "docs/SECURITY.md",
         ".github/SECURITY.md",
+        "docs/SECURITY.md",
     ],
     "maintainers": [
         "MAINTAINERS.md",
-        "MAINTAINERS",
-        "maintainers.md",
-        "docs/MAINTAINERS.md",
-        "OWNERS",
+        "MAINTAINERS.rst",
+        "COMMITTERS.rst",
+        "Maintainers.md",
         "CODEOWNERS",
         ".github/CODEOWNERS",
+        "docs/CODEOWNERS",
+        "docs/MAINTAINERS.md",
+        "docs/MAINTAINERS.rst",
+        "docs/COMMITTERS.rst",
     ],
     "license": [
-        "LICENSE",
         "LICENSE.md",
-        "LICENSE.txt",
-        "COPYING",
-        "COPYING.md",
+        "LICENSE",
+        "docs/LICENSE.md",
+        "LICENCE.md",
+        "LICENCE",
+        "docs/LICENCE"
     ],
     "charter": [
         "CHARTER.md",
-        "CHARTER",
-        "charter.md",
         "docs/CHARTER.md",
     ],
     "readme": [
         "README.md",
-        "README",
-        "readme.md",
+        "README.rst",
+        "docs/README.md",
+        "docs/README.rst",
     ],
+}
+
+
+# Multi-Repository Governance Configuration
+# Maps projects that have governance docs in separate repositories
+MULTI_REPO_GOVERNANCE = {
+    "tensorflow-tensorflow": {
+        "governance_repo": "tensorflow/community",
+        "description": "TensorFlow governance is maintained in separate community repo",
+        "primary_files": [
+            "governance/CHARTER.md",
+            "governance/GOVERNANCE.md",
+            "CONTRIBUTING.md",
+            "CODE_OF_CONDUCT.md",
+        ],
+    },
+    "kubernetes-kubernetes": {
+        "governance_repo": "kubernetes/community",
+        "description": "Kubernetes governance is in separate community repo",
+        "primary_files": [
+            "governance.md",
+            "committee-steering/governance/sig-governance.md",
+            "contributors/guide/README.md",
+            "code-of-conduct.md",
+            "sig-list.md",
+        ],
+    },
 }
