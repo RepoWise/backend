@@ -1,5 +1,5 @@
 """
-Core configuration module for OSS Forensics
+Core configuration module for RepWise
 """
 from typing import List
 from pydantic_settings import BaseSettings
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     )
 
     # Application Configuration
-    app_name: str = Field(default="OSS Forensics", env="APP_NAME")
+    app_name: str = Field(default="RepoWise", env="APP_NAME")
     app_version: str = Field(default="1.0.0", env="APP_VERSION")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     debug: bool = Field(default=False, env="DEBUG")
@@ -70,66 +70,14 @@ settings = Settings()
 
 
 # Flagship OSS Projects Configuration
-FLAGSHIP_PROJECTS = [
-    {
-        "id": "resilientdb-incubator-resilientdb",  # Match actual indexed project ID
-        "name": "Apache ResilientDB",
-        "owner": "resilientdb",  # Actual owner on GitHub
-        "repo": "incubator-resilientdb",
-        "description": "High-performance resilient and scalable blockchain fabric",
-        "foundation": "Apache Incubator",
-        "governance_url": "https://github.com/resilientdb/incubator-resilientdb",
-    },
-    {
-        "id": "kubernetes",
-        "name": "Kubernetes",
-        "owner": "kubernetes",
-        "repo": "kubernetes",
-        "description": "Production-Grade Container Orchestration",
-        "foundation": "CNCF",
-        "governance_url": "https://github.com/kubernetes/community/tree/master/governance",
-    },
-    {
-        "id": "airflow",
-        "name": "Apache Airflow",
-        "owner": "apache",
-        "repo": "airflow",
-        "description": "Platform to programmatically author, schedule and monitor workflows",
-        "foundation": "Apache",
-        "governance_url": "https://github.com/apache/airflow/blob/main/GOVERNANCE.md",
-    },
-    {
-        "id": "terraform",
-        "name": "Terraform",
-        "owner": "hashicorp",
-        "repo": "terraform",
-        "description": "Infrastructure as Code tool",
-        "foundation": "HashiCorp",
-        "governance_url": "https://github.com/hashicorp/terraform/blob/main/GOVERNANCE.md",
-    },
-    {
-        "id": "vscode",
-        "name": "Visual Studio Code",
-        "owner": "microsoft",
-        "repo": "vscode",
-        "description": "Code editor that runs anywhere",
-        "foundation": "Microsoft",
-        "governance_url": "https://github.com/microsoft/vscode/wiki/Governance",
-    },
-    {
-        "id": "postgresql",
-        "name": "PostgreSQL",
-        "owner": "postgres",
-        "repo": "postgres",
-        "description": "The world's most advanced open source database",
-        "foundation": "PostgreSQL Global Development Group",
-        "governance_url": "https://www.postgresql.org/developer/",
-    },
-]
+# FLAGSHIP_PROJECTS removed - system now relies entirely on dynamic_projects
+# Users add projects via /api/projects/add endpoint
+# Projects are stored in data/dynamic_projects.json
+FLAGSHIP_PROJECTS = []
 
 
-# Governance file patterns for detection
-GOVERNANCE_FILES = {
+# Project documentation file patterns for detection
+PROJECT_DOC_FILES = {
     "governance": [
         "GOVERNANCE.md",
         "docs/GOVERNANCE.md",

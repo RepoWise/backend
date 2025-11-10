@@ -1,5 +1,5 @@
 """
-Main FastAPI application for OSSPREY-GOV-POC
+Main FastAPI application for RepoWise
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +21,7 @@ logger.add(
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="RAG system for OSS Governance Document Analysis",
+    description="Intelligent repository analysis powered by RAG - Ask questions about any GitHub repository",
     docs_url="/docs",
     redoc_url="/redoc",
 )

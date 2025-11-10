@@ -1,6 +1,6 @@
 """
-API Routes for OSSPREY-GOV-POC
-Handles project management, governance crawling, and RAG queries
+API Routes for RepoWise
+Handles project management, document extraction, and RAG-powered queries
 """
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from app.core.config import FLAGSHIP_PROJECTS, settings
-from app.crawler.governance_extractor import GovernanceExtractor
+from app.crawler.project_doc_extractor import ProjectDocExtractor
 from app.rag.rag_engine import RAGEngine
 from app.models.llm_client import LLMClient
 from app.models.intent_router import IntentRouter
@@ -24,7 +24,7 @@ from app.data.data_cache_manager import DataCacheManager
 router = APIRouter()
 
 # Initialize components
-gov_extractor = GovernanceExtractor()
+doc_extractor = ProjectDocExtractor()
 rag_engine = RAGEngine()
 llm_client = LLMClient()
 # Use keyword-based intent classification (single-keyword approach, 67.8% accuracy)
@@ -115,7 +115,9 @@ def _auto_load_csv_data():
 dynamic_projects = _load_dynamic_projects()
 
 # Auto-load CSV data on startup
-_auto_load_csv_data()
+# DISABLED: All commits/issues data now comes from external API (https://ossprey.ngrok.app)
+# No need to auto-load manual CSV files from /data/scraped/
+# _auto_load_csv_data()
 
 
 # Pydantic Models
@@ -300,164 +302,14 @@ def _fetch_and_cache_repo_data(owner: str, repo: str, project_id: str) -> dict:
 
         return result
     else:
-        # Step 5: API failed, try CSV fallback
+        # API failed - no fallback to manually added CSV files
         error_msg = api_data.get("error", "Unknown error")
-        logger.warning(f"⚠️  API fetch failed: {error_msg}")
-        logger.info(f"📂 Attempting CSV fallback for {project_id}...")
+        logger.error(f"❌ API fetch failed: {error_msg}")
 
-        csv_result = _auto_discover_and_load_csvs(owner, repo, project_id)
-
-        if csv_result.get("commits_loaded") or csv_result.get("issues_loaded"):
-            result["data_source"] = "csv_fallback"
-            result["commits_loaded"] = csv_result.get("commits_loaded", False)
-            result["issues_loaded"] = csv_result.get("issues_loaded", False)
-            result["commits_count"] = csv_result.get("commits_count", 0)
-            result["issues_count"] = csv_result.get("issues_count", 0)
-            result["message"] = f"⚠️  API failed, used CSV fallback | {csv_result.get('message', '')}"
-            logger.info(result["message"])
-            return result
-        else:
-            result["data_source"] = "none"
-            result["message"] = f"❌ API failed ({error_msg}) and no CSV fallback available"
-            logger.error(result["message"])
-            return result
-
-
-def _auto_discover_and_load_csvs(owner: str, repo: str, project_id: str) -> dict:
-    """
-    Auto-discover and load CSV files from scraped directory
-
-    Expected directory structure:
-    data/scraped/{owner}-{repo}/ (case-insensitive)
-        ├── commits.csv (or *commits*.csv)
-        └── issues.csv (or *issues*.csv)
-
-    Args:
-        owner: GitHub owner/organization name (original case)
-        repo: Repository name (original case)
-        project_id: Project identifier (lowercased)
-
-    Returns:
-        dict with loading results
-    """
-    import os
-    import glob
-
-    # Construct scraped directory path using absolute path
-    # This ensures correct resolution when running in ThreadPoolExecutor
-    # __file__ is /backend/app/api/routes.py, so .parent.parent.parent.parent gets us to project root
-    scraped_base = Path(__file__).parent.parent.parent.parent / "data" / "scraped"
-    scraped_base = scraped_base.resolve()  # Resolve to absolute path
-
-    # First, try to find the directory case-insensitively
-    folder_patterns = [
-        f"{owner}-{repo}",  # Original case (e.g., DataONEorg-dataone-web)
-        f"{owner.lower()}-{repo.lower()}",  # Lowercase (e.g., dataoneorg-dataone-web)
-    ]
-
-    scraped_dir = None
-    for folder_name in folder_patterns:
-        candidate = scraped_base / folder_name
-        if candidate.exists():
-            scraped_dir = candidate
-            logger.info(f"📂 Found CSV directory: {scraped_dir}")
-            break
-
-    # If not found with exact names, try case-insensitive search on case-sensitive filesystems
-    if scraped_dir is None and scraped_base.exists():
-        for item in scraped_base.iterdir():
-            if item.is_dir() and item.name.lower() == f"{owner.lower()}-{repo.lower()}":
-                scraped_dir = item
-                logger.info(f"📂 Found CSV directory (case-insensitive): {scraped_dir}")
-                break
-
-    if scraped_dir is None:
-        scraped_dir = scraped_base / f"{owner}-{repo}"  # Use original case as fallback
-
-    result = {
-        "csv_directory": str(scraped_dir),
-        "commits_loaded": False,
-        "issues_loaded": False,
-        "commits_count": 0,
-        "issues_count": 0,
-        "message": ""
-    }
-
-    # Check if directory exists
-    if not scraped_dir.exists():
-        result["message"] = f"CSV directory not found: {scraped_dir}"
-        logger.warning(f"📂 CSV directory not found for {project_id}: {scraped_dir}")
+        result["data_source"] = "none"
+        result["message"] = f"❌ API failed: {error_msg}. Please try again later or check the external scraper service."
+        logger.error(result["message"])
         return result
-
-    logger.info(f"📂 Looking for CSVs in: {scraped_dir}")
-
-    # Look for commits CSV (match both "commit" and "commits")
-    commits_patterns = [
-        str(scraped_dir / "*commit*.csv"),  # Matches "commit" or "commits"
-        str(scraped_dir / "commits.csv"),
-    ]
-    commits_csv = None
-    for pattern in commits_patterns:
-        matches = glob.glob(pattern)
-        if matches:
-            commits_csv = matches[0]
-            break
-
-    # Look for issues CSV
-    issues_patterns = [
-        str(scraped_dir / "*issues*.csv"),
-        str(scraped_dir / "issues.csv"),
-    ]
-    issues_csv = None
-    for pattern in issues_patterns:
-        matches = glob.glob(pattern)
-        if matches:
-            issues_csv = matches[0]
-            break
-
-    # Load CSVs if found
-    try:
-        load_result = csv_engine.load_project_data(
-            project_id,
-            commits_path=commits_csv,
-            issues_path=issues_csv
-        )
-
-        result["commits_loaded"] = load_result.get("commits_loaded", False)
-        result["issues_loaded"] = load_result.get("issues_loaded", False)
-        result["commits_count"] = load_result.get("commits_count", 0)
-        result["issues_count"] = load_result.get("issues_count", 0)
-
-        # Save CSV paths for auto-reload
-        if result["commits_loaded"] or result["issues_loaded"]:
-            csv_paths = _load_csv_paths()
-            csv_paths[project_id] = {
-                "commits_csv_path": commits_csv,
-                "issues_csv_path": issues_csv
-            }
-            _save_csv_paths(csv_paths)
-            logger.info(f"💾 Saved CSV paths for {project_id} for auto-reload")
-
-        # Build success message
-        messages = []
-        if result["commits_loaded"]:
-            messages.append(f"✅ Loaded {result['commits_count']} commits")
-        else:
-            messages.append("⚠️  No commits CSV found")
-
-        if result["issues_loaded"]:
-            messages.append(f"✅ Loaded {result['issues_count']} issues")
-        else:
-            messages.append("⚠️  No issues CSV found")
-
-        result["message"] = " | ".join(messages)
-        logger.info(f"📊 CSV loading complete for {project_id}: {result['message']}")
-
-    except Exception as e:
-        result["message"] = f"Error loading CSVs: {str(e)}"
-        logger.error(f"❌ Error loading CSVs for {project_id}: {e}")
-
-    return result
 
 
 # Routes
@@ -528,13 +380,13 @@ async def add_repository(request: AddRepositoryRequest):
                 "project": dynamic_projects[project_id],
             }
 
-        # Extract governance documents
-        logger.info(f"Extracting governance documents for {owner}/{repo}")
-        gov_data = gov_extractor.extract_governance_documents(owner, repo, use_cache=True)
+        # Extract project documents
+        logger.info(f"Extracting project documents for {owner}/{repo}")
+        doc_data = doc_extractor.extract_project_documents(owner, repo, use_cache=True)
 
-        if "error" in gov_data:
+        if "error" in doc_data:
             raise HTTPException(
-                status_code=400, detail=f"Error extracting governance: {gov_data['error']}"
+                status_code=400, detail=f"Error extracting project docs: {doc_data['error']}"
             )
 
         # Create project object
@@ -565,7 +417,7 @@ async def add_repository(request: AddRepositoryRequest):
                 executor,
                 rag_engine.index_governance_documents,
                 project_id,
-                gov_data
+                doc_data
             )
             # Wait for governance indexing to complete
             index_result = await index_future
@@ -576,7 +428,7 @@ async def add_repository(request: AddRepositoryRequest):
             logger.error(f"❌ Governance indexing failed for {project_id}: {error_msg}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to index governance documents: {error_msg}"
+                detail=f"Failed to index project documents: {error_msg}"
             )
 
         logger.info(f"✅ Governance indexing complete for {project_id}")
@@ -618,12 +470,12 @@ async def add_repository(request: AddRepositoryRequest):
             "message": f"Successfully added {owner}/{repo}",
             "project": project,
             "extraction": {
-                "files_found": len(gov_data.get("files", {})),
-                "extraction_time": gov_data.get("metadata", {}).get("extraction_time_seconds", 0),
+                "files_found": len(doc_data.get("files", {})),
+                "extraction_time": doc_data.get("metadata", {}).get("extraction_time_seconds", 0),
             },
             "indexing": index_result,
             "data_loading": data_result,
-            "summary": gov_extractor.get_extraction_summary(gov_data),
+            "summary": doc_extractor.get_extraction_summary(doc_data),
         }
 
     except ValueError as e:
@@ -755,7 +607,7 @@ async def load_csv_data(project_id: str, request: LoadCSVRequest):
     """
     Load CSV data (commits and/or issues) for a project
 
-    This enables querying commits and issues data alongside governance documents.
+    This enables querying commits and issues data alongside project documents.
     """
     logger.info(f"Load CSV request for project: {project_id}")
 
@@ -805,42 +657,44 @@ async def load_csv_data(project_id: str, request: LoadCSVRequest):
 
 @router.post("/crawl/{project_id}")
 async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, use_cache: bool = True):
-    """Crawl and index governance documents for a project"""
+    """Crawl and index project documents for a project"""
     logger.info(f"Crawl request for project: {project_id}")
 
-    # Find project
+    # Find project in both flagship and dynamic projects
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
+    if not project and project_id in dynamic_projects:
+        project = dynamic_projects[project_id]
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
-        # Extract governance documents
-        logger.info(f"Extracting governance documents for {project['owner']}/{project['repo']}")
-        gov_data = gov_extractor.extract_governance_documents(
+        # Extract project documents
+        logger.info(f"Extracting project documents for {project['owner']}/{project['repo']}")
+        doc_data = doc_extractor.extract_project_documents(
             project["owner"], project["repo"], use_cache=use_cache
         )
 
-        if "error" in gov_data:
+        if "error" in doc_data:
             raise HTTPException(
                 status_code=500,
-                detail=f"Error extracting governance: {gov_data['error']}",
+                detail=f"Error extracting project docs: {doc_data['error']}",
             )
 
         # Index in RAG system
         logger.info(f"Indexing documents for {project_id}")
-        index_result = rag_engine.index_governance_documents(project_id, gov_data)
+        index_result = rag_engine.index_project_documents(project_id, doc_data)
 
         return {
             "project_id": project_id,
             "status": "success",
             "extraction": {
-                "files_found": len(gov_data.get("files", {})),
-                "extraction_time": gov_data.get("metadata", {}).get(
+                "files_found": len(doc_data.get("files", {})),
+                "extraction_time": doc_data.get("metadata", {}).get(
                     "extraction_time_seconds", 0
                 ),
             },
             "indexing": index_result,
-            "summary": gov_extractor.get_extraction_summary(gov_data),
+            "summary": doc_extractor.get_extraction_summary(doc_data),
         }
 
     except HTTPException:
@@ -853,13 +707,16 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, u
 @router.get("/governance/{project_id}")
 async def get_governance_data(project_id: str):
     """Get cached governance data for a project"""
+    # Find project in both flagship and dynamic projects
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
+    if not project and project_id in dynamic_projects:
+        project = dynamic_projects[project_id]
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
         # Try to load from cache
-        cached = gov_extractor._load_from_cache(project["owner"], project["repo"])
+        cached = doc_extractor._load_from_cache(project["owner"], project["repo"])
 
         if not cached:
             raise HTTPException(
@@ -894,7 +751,7 @@ async def get_governance_data(project_id: str):
 
 
 @router.post("/query", response_model=QueryResponse)
-async def query_governance(request: QueryRequest):
+async def query_project_docs(request: QueryRequest):
     """
     Multi-Modal Query Endpoint with Intent Routing
 
@@ -984,7 +841,7 @@ async def query_governance(request: QueryRequest):
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        if intent == "GOVERNANCE":
+        if intent == "PROJECT_DOC_BASED":
             # Use existing ChromaDB vector RAG
             context, sources, query_type = rag_engine.get_context_for_query(
                 request.query,
@@ -997,7 +854,7 @@ async def query_governance(request: QueryRequest):
                 return QueryResponse(
                     project_id=request.project_id,
                     query=request.query,
-                    response="No relevant governance documents found for this project. Please make sure the project has been crawled first.",
+                    response="No relevant project documents found for this project. Please make sure the project has been crawled first.",
                     sources=[],
                     metadata={"intent": intent, "has_context": False},
                     suggested_questions=suggested_questions,
@@ -1229,7 +1086,7 @@ async def query_governance(request: QueryRequest):
 
 
 @router.post("/query/stream")
-async def query_governance_stream(request: QueryRequest):
+async def query_project_docs_stream(request: QueryRequest):
     """Stream LLM response for governance query"""
     logger.info(
         f"Stream query request for project {request.project_id}: '{request.query}'"
@@ -1254,7 +1111,7 @@ async def query_governance_stream(request: QueryRequest):
 
         if not context:
             async def error_stream():
-                yield "No relevant governance documents found. Please make sure the project has been crawled first."
+                yield "No relevant project documents found. Please make sure the project has been crawled first."
 
             return StreamingResponse(error_stream(), media_type="text/plain")
 
@@ -1273,13 +1130,13 @@ async def query_governance_stream(request: QueryRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in query_governance_stream: {e}")
+        logger.error(f"Error in query_project_docs_stream: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/search")
 async def search_documents(request: SearchRequest):
-    """Semantic search in governance documents"""
+    """Semantic search in project documents"""
     logger.info(f"Search request: '{request.query}'")
 
     try:

@@ -160,11 +160,11 @@ class RAGEngine:
         logger.debug(f"Created {len(chunks)} chunks from document (min_size={min_chunk_size})")
         return chunks
 
-    def index_governance_documents(
+    def index_project_documents(
         self, project_id: str, governance_data: Dict
     ) -> Dict:
         """
-        Index governance documents for a project
+        Index project documents for a project
 
         Args:
             project_id: Unique project identifier
@@ -173,7 +173,7 @@ class RAGEngine:
         Returns:
             Indexing statistics
         """
-        logger.info(f"Indexing governance documents for project: {project_id}")
+        logger.info(f"Indexing project documents for project: {project_id}")
 
         files = governance_data.get("files", {})
         if not files:

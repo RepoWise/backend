@@ -16,5 +16,41 @@
     "description": "Custom repository: vercel/swr",
     "foundation": "Custom",
     "governance_url": "https://github.com/vercel/swr"
+  },
+  "facebook-react": {
+    "id": "facebook-react",
+    "name": "react",
+    "owner": "facebook",
+    "repo": "react",
+    "description": "Custom repository: facebook/react",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/facebook/react"
+  },
+  "keras-team-keras-io": {
+    "id": "keras-team-keras-io",
+    "name": "keras-io",
+    "owner": "keras-team",
+    "repo": "keras-io",
+    "description": "Custom repository: keras-team/keras-io",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/keras-team/keras-io"
+  },
+  "pandas-dev-pandas": {
+    "id": "pandas-dev-pandas",
+    "name": "pandas",
+    "owner": "pandas-dev",
+    "repo": "pandas",
+    "description": "Custom repository: pandas-dev/pandas",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/pandas-dev/pandas"
+  },
+  "jakewharton-actionbarsherlock": {
+    "id": "jakewharton-actionbarsherlock",
+    "name": "ActionBarSherlock",
+    "owner": "JakeWharton",
+    "repo": "ActionBarSherlock",
+    "description": "Custom repository: JakeWharton/ActionBarSherlock",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/JakeWharton/ActionBarSherlock"
   }
 }

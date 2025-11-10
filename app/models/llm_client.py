@@ -57,7 +57,7 @@ class LLMClient:
 
         logger.info(f"LLM Client initialized - Model: {self.model}, Host: {self.host}")
 
-    def _build_governance_prompt(
+    def _build_project_doc_prompt(
         self,
         query: str,
         context: str,
@@ -67,11 +67,11 @@ class LLMClient:
         query_type: str = "general",
     ) -> str:
         """
-        Build task-specific prompt with few-shot examples for governance queries
+        Build task-specific prompt with few-shot examples for project documentation queries
 
         Args:
             query: User question
-            context: Retrieved governance document context
+            context: Retrieved project documentation context
             project_name: Name of the project
             include_sources: Whether to ask LLM to cite sources
             conversation_history: Previous conversation messages
@@ -200,7 +200,7 @@ RESPONSE LENGTH: Match the question's complexity. Provide enough detail for comp
         # Get task-specific instructions
         task_instruction = task_instructions.get(query_type, task_instructions["general"])
 
-        # Different prompt structure for CSV data vs governance documents
+        # Different prompt structure for CSV data vs project documents
         if query_type in ["commits", "issues"]:
             data_label = f"{query_type.upper()} DATA"
 
@@ -248,7 +248,7 @@ REMINDER: Only use information from the {query_type} data above. Do not use exte
 
 """
         else:
-            # Enhanced governance documents prompt with stronger anti-hallucination measures
+            # Enhanced project documents prompt with stronger anti-hallucination measures
             system_prompt = f"""You are a precise document analyst for the {project_name} project.
 
 {task_instruction}
@@ -370,7 +370,7 @@ Your answer:"""
         Returns:
             Dict with response and metadata
         """
-        prompt = self._build_governance_prompt(
+        prompt = self._build_project_doc_prompt(
             query, context, project_name,
             conversation_history=conversation_history,
             query_type=query_type
@@ -447,7 +447,7 @@ Your answer:"""
         Yields:
             Response chunks as they're generated
         """
-        prompt = self._build_governance_prompt(
+        prompt = self._build_project_doc_prompt(
             query, context, project_name,
             conversation_history=conversation_history,
             query_type=query_type
@@ -595,7 +595,7 @@ Your answer:"""
         Returns:
             Dict with response and metadata
         """
-        prompt = self._build_governance_prompt(query, context, project_name)
+        prompt = self._build_project_doc_prompt(query, context, project_name)
 
         payload = {
             "model": self.model,

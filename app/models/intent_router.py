@@ -2,7 +2,7 @@
 Intent Classification Router
 Determines whether a query should go to:
 - General LLM (generic questions not project-specific)
-- Governance RAG (governance documents)
+- Project Doc RAG (project documents: README, LICENSE, CONTRIBUTING, etc.)
 - Commits Query Engine (commits CSV data)
 - Issues Query Engine (issues CSV data)
 """
@@ -16,7 +16,7 @@ class IntentRouter:
 
     Intent Types:
     - GENERAL: Generic ML/programming questions (not project-specific)
-    - GOVERNANCE: Questions about project governance, contribution, maintainers
+    - PROJECT_DOC_BASED: Questions about project governance, contribution, maintainers
     - COMMITS: Questions about commits, contributors, code changes
     - ISSUES: Questions about issues, bugs, feature requests
     """
@@ -58,7 +58,7 @@ class IntentRouter:
     }
 
     # Keywords for each intent type
-    GOVERNANCE_KEYWORDS = {
+    PROJECT_DOC_BASED_KEYWORDS = {
         "maintainer", "maintains", "maintained", "contribute", "contributing", "governance",
         "code of conduct", "coc", "license", "security", "policy", "guideline",
         "community", "decision", "voting", "leadership", "structure", "role",
@@ -147,7 +147,7 @@ class IntentRouter:
 
         Returns:
             (intent_type, confidence)
-            intent_type: GENERAL, GOVERNANCE, COMMITS, ISSUES, OUT_OF_SCOPE
+            intent_type: GENERAL, PROJECT_DOC_BASED, COMMITS, ISSUES, OUT_OF_SCOPE
             confidence: 0.0-1.0
         """
         if not self.llm_client:
@@ -159,7 +159,7 @@ class IntentRouter:
 
 Classify the user's query into EXACTLY ONE category:
 
-**GOVERNANCE**: Questions about project governance, policies, contribution processes, maintainers, leadership, code of conduct, licenses, security policies, reporting procedures, decision-making processes.
+**PROJECT_DOC_BASED**: Questions about project governance, policies, contribution processes, maintainers, leadership, code of conduct, licenses, security policies, reporting procedures, decision-making processes.
 Examples:
 - "Who are the maintainers?"
 - "How do I report a bug?" (process, not statistics)
@@ -201,7 +201,7 @@ Examples:
 - "What can you do?"
 
 **Key Decision Rules**:
-1. If query asks "how to [do something]" regarding contribution/reporting → GOVERNANCE (process)
+1. If query asks "how to [do something]" regarding contribution/reporting → PROJECT_DOC_BASED (process)
 2. If query asks "how many/count/show me" regarding commits/files/code → COMMITS (data)
 3. If query asks "how many/count/show me" regarding issues/bugs/tickets → ISSUES (data)
 4. If query mentions "bug fixes" in context of commit messages or code changes → COMMITS
@@ -212,14 +212,14 @@ Examples:
 User Query: "{query}"
 Project Context: {"User has selected a project" if has_project_context else "No project selected"}
 
-Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OUT_OF_SCOPE"""
+Respond with ONLY the category name: PROJECT_DOC_BASED, COMMITS, ISSUES, GENERAL, or OUT_OF_SCOPE"""
 
         try:
             llm_response = self.llm_client.generate_simple(prompt, max_tokens=20, temperature=0.1)
             llm_intent = llm_response.strip().upper()
 
             # Validate LLM response
-            valid_intents = ["GOVERNANCE", "COMMITS", "ISSUES", "GENERAL", "OUT_OF_SCOPE"]
+            valid_intents = ["PROJECT_DOC_BASED", "COMMITS", "ISSUES", "GENERAL", "OUT_OF_SCOPE"]
             if llm_intent in valid_intents:
                 confidence = 0.90  # High confidence for LLM classification
                 logger.info(f"✅ LLM classified: '{query}' → {llm_intent} ({confidence:.2f})")
@@ -235,7 +235,7 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
         """
         Keyword-based hierarchical intent classification
 
-        Stage 1: Procedure detection (GOVERNANCE priority)
+        Stage 1: Procedure detection (PROJECT_DOC_BASED priority)
         Stage 2: Statistical detection (COMMITS/ISSUES)
         Stage 3: Keyword scoring with matched tokens
         Stage 4: LLM fallback (for ambiguous cases)
@@ -246,7 +246,7 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
 
         Returns:
             (intent_type, confidence)
-            intent_type: GENERAL, GOVERNANCE, COMMITS, ISSUES
+            intent_type: GENERAL, PROJECT_DOC_BASED, COMMITS, ISSUES
             confidence: 0.0-1.0
         """
         query_lower = query.lower()
@@ -273,7 +273,7 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
         if cleaned_query != query_lower:  # Greeting was removed
             word_count = len(cleaned_query.split())
             has_substance = word_count >= 5 or any(kw in cleaned_query for kw in
-                list(self.GOVERNANCE_KEYWORDS) + list(self.COMMITS_KEYWORDS) + list(self.ISSUES_KEYWORDS))
+                list(self.PROJECT_DOC_BASED_KEYWORDS) + list(self.COMMITS_KEYWORDS) + list(self.ISSUES_KEYWORDS))
 
             if has_substance:
                 logger.info(f"🎯 Stage 0: Greeting detected but query has substance → Continue classification")
@@ -296,14 +296,14 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
             return "GENERAL", 0.95
 
         # =================================================================
-        # STAGE 1: PROCEDURE QUESTIONS → GOVERNANCE (highest priority)
+        # STAGE 1: PROCEDURE QUESTIONS → PROJECT_DOC_BASED (highest priority)
         # =================================================================
         matched_procedure = [p for p in self.PROCEDURE_PHRASES if p in query_lower]
         has_stats = any(stat in query_lower for stat in self.STATISTICAL_INDICATORS)
 
         if matched_procedure and not has_stats:
-            logger.info(f"🎯 Stage 1: Procedure → GOVERNANCE | matched: {matched_procedure[:2]}")
-            return "GOVERNANCE", 0.95
+            logger.info(f"🎯 Stage 1: Procedure → PROJECT_DOC_BASED | matched: {matched_procedure[:2]}")
+            return "PROJECT_DOC_BASED", 0.95
 
         # =================================================================
         # STAGE 2: STATISTICAL QUESTIONS → COMMITS/ISSUES
@@ -325,7 +325,7 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
         # =================================================================
         # STAGE 3: KEYWORD SCORING WITH MATCHED TOKENS
         # =================================================================
-        governance_score, gov_matches = self._count_keywords(query_lower, self.GOVERNANCE_KEYWORDS)
+        governance_score, gov_matches = self._count_keywords(query_lower, self.PROJECT_DOC_BASED_KEYWORDS)
         commits_score, com_matches = self._count_keywords(query_lower, self.COMMITS_KEYWORDS)
         issues_score, iss_matches = self._count_keywords(query_lower, self.ISSUES_KEYWORDS)
 
@@ -340,20 +340,20 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
         ])
 
         # If query seems generic and doesn't reference project specifically AND no project context
-        # When has_project_context=True, user is asking about a specific project, so prefer GOVERNANCE
+        # When has_project_context=True, user is asking about a specific project, so prefer PROJECT_DOC_BASED
         if is_generic and not has_project_ref and not has_project_context and max(governance_score, commits_score, issues_score) == 0:
             logger.info(f"🎯 Stage 3: Generic query → GENERAL")
             return "GENERAL", 0.8
 
-        # If has project context but query seems generic with no keywords, default to GOVERNANCE
+        # If has project context but query seems generic with no keywords, default to PROJECT_DOC_BASED
         # This handles queries like "what examples does it have?" when user has selected a project
         if has_project_context and is_generic and max(governance_score, commits_score, issues_score) == 0:
-            logger.info(f"🎯 Stage 3: Project-specific general query → GOVERNANCE")
-            return "GOVERNANCE", 0.7
+            logger.info(f"🎯 Stage 3: Project-specific general query → PROJECT_DOC_BASED")
+            return "PROJECT_DOC_BASED", 0.7
 
         # Calculate scores with priority ordering
         scores = {
-            "GOVERNANCE": governance_score,
+            "PROJECT_DOC_BASED": governance_score,
             "COMMITS": commits_score,
             "ISSUES": issues_score,
         }
@@ -364,7 +364,7 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
         # Confidence threshold for keyword matching
         if max_score >= 1.5:  # At least one strong keyword match
             confidence = min(0.95, max_score / 3.0)  # 3+ matches = very confident
-            matched = gov_matches if max_intent == "GOVERNANCE" else (com_matches if max_intent == "COMMITS" else iss_matches)
+            matched = gov_matches if max_intent == "PROJECT_DOC_BASED" else (com_matches if max_intent == "COMMITS" else iss_matches)
             logger.info(f"🎯 Stage 3: Keyword scoring → {max_intent} ({confidence:.2f}) | matched: {matched[:3]}")
             return max_intent, confidence
 
@@ -376,20 +376,20 @@ Respond with ONLY the category name: GOVERNANCE, COMMITS, ISSUES, GENERAL, or OU
             try:
                 prompt = f"""You are a query intent classifier. Classify the following user query into EXACTLY ONE of these categories:
 
-GOVERNANCE - Questions about project governance, contribution process, maintainers, code of conduct, policies, reporting procedures
+PROJECT_DOC_BASED - Questions about project governance, contribution process, maintainers, code of conduct, policies, reporting procedures
 COMMITS - Questions about commit history, code changes, file modifications, contributors, authorship
 ISSUES - Questions about bug reports, feature requests, issue tracking, tickets
 GENERAL - Generic programming questions not specific to this project
 
 Query: "{query}"
 
-Respond with ONLY ONE WORD: GOVERNANCE, COMMITS, ISSUES, or GENERAL"""
+Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
 
                 llm_response = self.llm_client.generate_simple(prompt, max_tokens=10, temperature=0.1)
                 llm_intent = llm_response.strip().upper()
 
                 # Validate LLM response
-                valid_intents = ["GOVERNANCE", "COMMITS", "ISSUES", "GENERAL"]
+                valid_intents = ["PROJECT_DOC_BASED", "COMMITS", "ISSUES", "GENERAL"]
                 if llm_intent in valid_intents:
                     logger.info(f"✅ Stage 4: LLM classified → {llm_intent}")
                     return llm_intent, 0.75  # Medium confidence for LLM fallback
@@ -403,15 +403,15 @@ Respond with ONLY ONE WORD: GOVERNANCE, COMMITS, ISSUES, or GENERAL"""
         # =================================================================
         if query_lower.startswith(("who ", "who's", "who are")):
             if "maintain" in query_lower:
-                return "GOVERNANCE", 0.65
+                return "PROJECT_DOC_BASED", 0.65
             else:
                 return "COMMITS", 0.60
 
         elif query_lower.startswith(("what is", "what are", "what's")):
-            return "GOVERNANCE", 0.55
+            return "PROJECT_DOC_BASED", 0.55
 
         elif query_lower.startswith(("how to", "how do", "how can")):
-            return "GOVERNANCE", 0.60
+            return "PROJECT_DOC_BASED", 0.60
 
         elif "how many" in query_lower or "count" in query_lower:
             return "COMMITS", 0.50
@@ -464,11 +464,11 @@ Respond with ONLY ONE WORD: GOVERNANCE, COMMITS, ISSUES, or GENERAL"""
 
     def should_use_rag(self, intent: str) -> bool:
         """Determine if intent requires RAG or direct LLM"""
-        return intent in ["GOVERNANCE", "COMMITS", "ISSUES"]
+        return intent in ["PROJECT_DOC_BASED", "COMMITS", "ISSUES"]
 
     def get_data_source(self, intent: str) -> str:
         """Get data source type for intent"""
-        if intent == "GOVERNANCE":
+        if intent == "PROJECT_DOC_BASED":
             return "vector_db"
         elif intent in ["COMMITS", "ISSUES"]:
             return "csv"
@@ -496,7 +496,7 @@ Respond with ONLY ONE WORD: GOVERNANCE, COMMITS, ISSUES, or GENERAL"""
 
         # Show keyword matches
         query_lower = query.lower()
-        gov_matches = [kw for kw in self.GOVERNANCE_KEYWORDS if kw in query_lower]
+        gov_matches = [kw for kw in self.PROJECT_DOC_BASED_KEYWORDS if kw in query_lower]
         com_matches = [kw for kw in self.COMMITS_KEYWORDS if kw in query_lower]
         iss_matches = [kw for kw in self.ISSUES_KEYWORDS if kw in query_lower]
 

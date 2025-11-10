@@ -15,7 +15,7 @@ from app.core.config import settings
 
 class ChromaVectorStore:
     """
-    Production-grade ChromaDB vector store for governance document retrieval
+    Production-grade ChromaDB vector store for project document retrieval
 
     Features:
     - Multi-project isolation using separate collections
@@ -74,7 +74,7 @@ class ChromaVectorStore:
             ChromaDB collection instance
         """
         # Collection names must be 3-63 characters, alphanumeric + underscores/hyphens
-        collection_name = f"gov_docs_{project_id}".replace("/", "_").replace(".", "_")
+        collection_name = f"project_docs_{project_id}".replace("/", "_").replace(".", "_")
 
         # Check cache first
         if collection_name in self._collections:
@@ -91,7 +91,7 @@ class ChromaVectorStore:
                     name=collection_name,
                     metadata={
                         "project_id": project_id,
-                        "description": f"Governance documents for {project_id}",
+                        "description": f"Project documents for {project_id}",
                         "hnsw:space": "cosine",  # Use cosine similarity
                     }
                 )
@@ -365,7 +365,7 @@ class ChromaVectorStore:
         Returns:
             True if successful
         """
-        collection_name = f"gov_docs_{project_id}".replace("/", "_").replace(".", "_")
+        collection_name = f"project_docs_{project_id}".replace("/", "_").replace(".", "_")
 
         try:
             self.client.delete_collection(name=collection_name)
@@ -414,8 +414,8 @@ class ChromaVectorStore:
 
         for collection in all_collections:
             # Extract project_id from collection name
-            if collection.name.startswith("gov_docs_"):
-                project_id = collection.name.replace("gov_docs_", "")
+            if collection.name.startswith("project_docs_"):
+                project_id = collection.name.replace("project_docs_", "")
                 stats["projects"][project_id] = {
                     "document_count": collection.count(),
                     "metadata": collection.metadata

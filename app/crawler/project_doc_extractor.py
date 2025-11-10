@@ -1,5 +1,6 @@
 """
-Advanced Governance Document Extractor
+Advanced Project Document Extractor
+Extracts project documentation (README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, etc.)
 Implements multi-method extraction with intelligent caching and rate limiting
 """
 import re
@@ -15,16 +16,17 @@ from github import Github, GithubException, RateLimitExceededException
 from github.Repository import Repository
 from github.GithubObject import NotSet
 
-from app.core.config import settings, GOVERNANCE_FILES
+from app.core.config import settings, PROJECT_DOC_FILES
 
 
-class GovernanceExtractor:
+class ProjectDocExtractor:
     """
-    Production-grade governance document extractor with:
+    Production-grade project document extractor with:
     - Multi-method extraction (Community Profile API, Tree API, Contents API)
     - Intelligent caching with SHA-based change detection
     - Rate limit management with exponential backoff
-    - Pattern-based file detection for all governance document types
+    - Pattern-based file detection for all project document types
+    - Extracts: README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, GOVERNANCE, MAINTAINERS, etc.
     """
 
     def __init__(self, github_token: str = None):
@@ -34,7 +36,7 @@ class GovernanceExtractor:
         self.cache_dir = Path(settings.cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"GovernanceExtractor initialized with cache dir: {self.cache_dir}")
+        logger.info(f"ProjectDocExtractor initialized with cache dir: {self.cache_dir}")
 
     def _check_rate_limit(self):
         """Check and handle GitHub API rate limits"""
@@ -61,7 +63,7 @@ class GovernanceExtractor:
     def _load_from_cache(
         self, owner: str, repo: str
     ) -> Optional[Dict]:
-        """Load governance data from cache if valid"""
+        """Load project document data from cache if valid"""
         cache_path = self._get_cache_path(owner, repo)
 
         if not cache_path.exists():
@@ -87,7 +89,7 @@ class GovernanceExtractor:
             return None
 
     def _save_to_cache(self, owner: str, repo: str, data: Dict):
-        """Save governance data to cache"""
+        """Save project document data to cache"""
         cache_path = self._get_cache_path(owner, repo)
 
         try:
@@ -99,14 +101,14 @@ class GovernanceExtractor:
         except Exception as e:
             logger.error(f"Error saving cache: {e}")
 
-    def _match_governance_file(self, file_path: str) -> Optional[Tuple[str, str]]:
+    def _match_project_doc_file(self, file_path: str) -> Optional[Tuple[str, str]]:
         """
-        Match file path against governance file patterns
+        Match file path against project document file patterns
         Returns (file_type, detected_path) or None
         """
         file_path_lower = file_path.lower()
 
-        for file_type, patterns in GOVERNANCE_FILES.items():
+        for file_type, patterns in PROJECT_DOC_FILES.items():
             for pattern in patterns:
                 pattern_lower = pattern.lower()
                 # Check exact match or ends with pattern
@@ -126,7 +128,7 @@ class GovernanceExtractor:
         try:
             self._check_rate_limit()
 
-            # Check common locations for governance files
+            # Check common locations for project documentation files
             common_paths = [
                 "CODE_OF_CONDUCT.md",
                 "CONTRIBUTING.md",
@@ -152,7 +154,7 @@ class GovernanceExtractor:
                     # Try to get the file
                     content_file = repo.get_contents(path)
                     if content_file and not isinstance(content_file, list):
-                        match = self._match_governance_file(path)
+                        match = self._match_project_doc_file(path)
                         if match:
                             file_type, _ = match
                             if file_type not in files_found:
@@ -197,7 +199,7 @@ class GovernanceExtractor:
             # Scan all files in tree
             for element in tree.tree:
                 if element.type == "blob":  # Files only, not directories
-                    match = self._match_governance_file(element.path)
+                    match = self._match_project_doc_file(element.path)
                     if match:
                         file_type, path = match
                         # Prioritize root-level files over subdirectory files
@@ -222,7 +224,7 @@ class GovernanceExtractor:
                                 }
 
             logger.info(
-                f"Tree API matched {len(files_found)} governance files for {repo.full_name}"
+                f"Tree API matched {len(files_found)} project doc files for {repo.full_name}"
             )
 
         except Exception as e:
@@ -256,7 +258,7 @@ class GovernanceExtractor:
             logger.error(f"Unexpected error fetching {file_path}: {e}")
             return None
 
-    def extract_governance_documents(
+    def extract_project_documents(
         self, owner: str, repo_name: str, use_cache: bool = True
     ) -> Dict:
         """
@@ -313,13 +315,13 @@ class GovernanceExtractor:
             all_files = {**files_from_tree, **files_from_profile}  # Profile overrides Tree
 
             # Fetch actual content for each file
-            governance_data = {}
+            project_docs_data = {}
             for file_type, file_info in all_files.items():
                 logger.info(f"Fetching content for {file_type}: {file_info['path']}")
                 content = self._fetch_file_content(repo, file_info["path"])
 
                 if content:
-                    governance_data[file_type] = {
+                    project_docs_data[file_type] = {
                         **file_info,
                         "content": content,
                         "content_length": len(content),
@@ -334,11 +336,11 @@ class GovernanceExtractor:
                 "repo": repo_name,
                 "full_name": repo.full_name,
                 "extracted_at": datetime.now().isoformat(),
-                "files": governance_data,
+                "files": project_docs_data,
                 "metadata": {
-                    "total_files": len(governance_data),
+                    "total_files": len(project_docs_data),
                     "extraction_methods": list(
-                        set([f["source"] for f in governance_data.values()])
+                        set([f["source"] for f in project_docs_data.values()])
                     ),
                     "extraction_time_seconds": round(extraction_time, 2),
                     "repository_info": {
@@ -356,7 +358,7 @@ class GovernanceExtractor:
             self._save_to_cache(owner, repo_name, result)
 
             logger.success(
-                f"Extracted {len(governance_data)} files for {owner}/{repo_name} in {extraction_time:.2f}s"
+                f"Extracted {len(project_docs_data)} files for {owner}/{repo_name} in {extraction_time:.2f}s"
             )
 
             return result
@@ -365,7 +367,7 @@ class GovernanceExtractor:
             logger.error("Rate limit exceeded - waiting for reset")
             self._check_rate_limit()
             # Retry once
-            return self.extract_governance_documents(owner, repo_name, use_cache=False)
+            return self.extract_project_documents(owner, repo_name, use_cache=False)
 
         except GithubException as e:
             logger.error(f"GitHub API error for {owner}/{repo_name}: {e}")
@@ -396,7 +398,7 @@ class GovernanceExtractor:
         parallel: bool = False,
     ) -> List[Dict]:
         """
-        Extract governance documents from multiple repositories
+        Extract project documents from multiple repositories
 
         Args:
             repos: List of (owner, repo_name) tuples
@@ -410,7 +412,7 @@ class GovernanceExtractor:
 
         for owner, repo_name in repos:
             try:
-                result = self.extract_governance_documents(owner, repo_name, use_cache)
+                result = self.extract_project_documents(owner, repo_name, use_cache)
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to extract {owner}/{repo_name}: {e}")
@@ -439,7 +441,7 @@ class GovernanceExtractor:
             "extraction_time": extraction_result.get("metadata", {}).get(
                 "extraction_time_seconds", 0
             ),
-            "has_governance": "governance" in files,
+            "has_governance_doc": "governance" in files,
             "has_contributing": "contributing" in files,
             "has_code_of_conduct": "code_of_conduct" in files,
             "has_security": "security" in files,
