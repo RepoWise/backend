@@ -1,0 +1,151 @@
+commit_sha,name,email,date,message,filename,lines_added,lines_deleted
+abc0000xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-01-11 11:50:40,Add feature for test_main,tests/test_main.py,128,1
+abc0001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-01-20 17:12:48,Add feature for test_models,tests/test_models.py,132,6
+abc0002xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-01-06 05:24:20,Add feature for main,src/main.py,192,3
+abc0003xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-12-20 13:10:57,Refactor CONTRIBUTING,CONTRIBUTING.md,44,20
+abc0004xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-01-07 15:44:06,Add feature for test_models,tests/test_models.py,85,0
+abc0005xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-02-12 16:56:18,Fix bug in test_utils,tests/test_utils.py,16,42
+abc0006xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-08-08 19:56:11,Fix bug in CONTRIBUTING,CONTRIBUTING.md,34,41
+abc0007xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-05-31 13:33:17,Fix bug in CONTRIBUTING,CONTRIBUTING.md,47,25
+abc0008xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-06-25 09:45:08,Update documentation for database.yml,config/database.yml,13,19
+abc0009xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-03-09 10:10:52,Refactor endpoints,src/api/endpoints.py,41,43
+abc0010xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-12-29 05:39:40,Refactor test_main,tests/test_main.py,17,17
+abc0011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-12-29 18:41:04,Add feature for middleware,src/api/middleware.py,176,8
+abc0012xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-07-30 01:56:35,Refactor main,src/main.py,19,24
+abc0013xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2024-11-16 19:15:54,Add tests for CONTRIBUTING,CONTRIBUTING.md,30,10
+abc0014xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-11-29 14:03:18,Add feature for database.yml,config/database.yml,192,17
+abc0015xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-03-15 04:43:02,Update documentation for CONTRIBUTING,CONTRIBUTING.md,94,37
+abc0016xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-04-29 16:57:23,Add feature for README,README.md,64,2
+abc0017xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-05-22 11:57:31,Add tests for endpoints,src/api/endpoints.py,59,4
+abc0018xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-26 18:26:53,Add tests for ci.yml,.github/workflows/ci.yml,55,9
+abc0019xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-02-03 21:38:33,Add feature for auth,src/models/auth.py,68,0
+abc0020xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-08-11 15:58:26,Fix bug in utils,src/utils.py,28,9
+abc0021xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2024-11-29 23:57:31,Update dependencies connection,src/database/connection.py,16,3
+abc0022xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-27 07:30:43,Add tests for endpoints,src/api/endpoints.py,66,5
+abc0023xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-08-28 18:48:20,Refactor utils,src/utils.py,32,39
+abc0024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-06-17 16:08:36,Update dependencies README,README.md,6,2
+abc0025xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-11-14 06:30:54,Add tests for user,src/models/user.py,63,4
+abc0026xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-02-12 19:59:33,Update documentation for database.yml,config/database.yml,60,8
+abc0027xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-04-25 04:32:01,Fix bug in test_utils,tests/test_utils.py,43,20
+abc0028xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-05-25 01:58:48,Fix bug in main,src/main.py,5,17
+abc0029xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-01-24 02:10:43,Update documentation for settings.json,config/settings.json,39,14
+abc0030xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-06-14 13:17:18,Fix bug in test_utils,tests/test_utils.py,16,27
+abc0031xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-05-27 23:16:46,Fix bug in database.yml,config/database.yml,9,29
+abc0032xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2024-11-23 12:44:59,Update dependencies middleware,src/api/middleware.py,6,8
+abc0033xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-04-27 07:47:33,Update dependencies utils,src/utils.py,19,3
+abc0034xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-03-14 17:27:01,Update documentation for database.yml,config/database.yml,67,45
+abc0035xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2024-12-28 19:47:17,Add feature for README,README.md,122,13
+abc0036xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-11-08 21:58:40,Refactor middleware,src/api/middleware.py,34,13
+abc0037xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-02-02 03:42:27,Add tests for database.yml,config/database.yml,76,7
+abc0038xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-05-25 04:07:32,Fix bug in settings.json,config/settings.json,27,4
+abc0039xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-02-25 19:17:24,Refactor ci.yml,.github/workflows/ci.yml,31,6
+abc0040xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-02-22 11:30:01,Update documentation for user,src/models/user.py,92,40
+abc0041xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-01-14 17:41:19,Fix bug in settings.json,config/settings.json,35,16
+abc0042xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-04-10 09:37:06,Update dependencies ci.yml,.github/workflows/ci.yml,8,1
+abc0043xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-05-25 13:32:29,Add feature for endpoints,src/api/endpoints.py,124,10
+abc0044xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-05-28 15:00:05,Refactor endpoints,src/api/endpoints.py,21,18
+abc0045xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-09-09 17:53:53,Add tests for README,README.md,26,8
+abc0046xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-03-27 09:17:18,Add tests for user,src/models/user.py,71,10
+abc0047xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-04-02 17:55:19,Update documentation for database.yml,config/database.yml,71,35
+abc0048xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-11-22 19:38:47,Update documentation for ci.yml,.github/workflows/ci.yml,16,43
+abc0049xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-04-16 04:49:42,Add feature for utils,src/utils.py,118,16
+abc0050xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-05-03 01:37:05,Add feature for auth,src/models/auth.py,61,9
+abc0051xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-12-02 19:23:19,Add feature for test_utils,tests/test_utils.py,44,15
+abc0052xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-03-31 18:04:44,Refactor ci.yml,.github/workflows/ci.yml,18,16
+abc0053xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-11-28 20:00:18,Add feature for utils,src/utils.py,79,0
+abc0054xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-07-15 13:06:36,Update documentation for middleware,src/api/middleware.py,67,44
+abc0055xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-12-04 10:29:16,Add feature for ci.yml,.github/workflows/ci.yml,117,6
+abc0056xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-03-04 16:19:55,Add feature for test_main,tests/test_main.py,103,0
+abc0057xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-04-16 23:00:19,Update documentation for tutorial,docs/tutorial.md,58,15
+abc0058xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2024-11-23 21:28:12,Add tests for settings.json,config/settings.json,21,7
+abc0059xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-05-29 23:25:30,Update documentation for ci.yml,.github/workflows/ci.yml,79,6
+abc0060xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-12-02 21:14:36,Add feature for auth,src/models/auth.py,92,16
+abc0061xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-06-15 11:33:38,Refactor settings.json,config/settings.json,9,40
+abc0062xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-12-18 22:27:01,Refactor database.yml,config/database.yml,50,25
+abc0063xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-02-06 03:02:34,Add tests for README,README.md,29,0
+abc0064xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-01-15 08:54:50,Add feature for test_models,tests/test_models.py,160,18
+abc0065xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-01-06 10:55:47,Update documentation for tutorial,docs/tutorial.md,10,28
+abc0066xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-03-06 11:38:34,Fix bug in test_main,tests/test_main.py,24,21
+abc0067xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-08-01 13:12:19,Update dependencies settings.json,config/settings.json,10,2
+abc0068xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-02-25 01:04:18,Update documentation for ci.yml,.github/workflows/ci.yml,88,13
+abc0069xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-12-01 22:44:30,Update dependencies test_utils,tests/test_utils.py,12,8
+abc0070xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-03-26 20:24:00,Add tests for endpoints,src/api/endpoints.py,19,3
+abc0071xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-11-09 08:47:18,Add tests for CONTRIBUTING,CONTRIBUTING.md,38,1
+abc0072xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-11-22 23:26:45,Refactor tutorial,docs/tutorial.md,6,17
+abc0073xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-19 00:34:07,Update documentation for endpoints,src/api/endpoints.py,86,32
+abc0074xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-06-09 13:50:11,Fix bug in CONTRIBUTING,CONTRIBUTING.md,43,8
+abc0075xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-15 03:13:11,Update documentation for connection,src/database/connection.py,100,25
+abc0076xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-07-02 07:34:34,Refactor api,docs/api.md,50,19
+abc0077xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-03-22 20:48:52,Add tests for settings.json,config/settings.json,70,8
+abc0078xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-01-12 08:32:40,Add tests for middleware,src/api/middleware.py,47,0
+abc0079xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2024-12-05 06:05:31,Add feature for main,src/main.py,136,10
+abc0080xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-12-19 22:01:38,Add feature for api,docs/api.md,134,2
+abc0081xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-01-13 11:18:58,Update dependencies utils,src/utils.py,17,3
+abc0082xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-30 21:51:11,Update documentation for database.yml,config/database.yml,34,21
+abc0083xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-01-05 13:31:12,Update dependencies api,docs/api.md,6,4
+abc0084xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-01-07 08:06:31,Add tests for endpoints,src/api/endpoints.py,58,9
+abc0085xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-01-29 17:23:08,Add feature for utils,src/utils.py,82,11
+abc0086xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2024-12-30 12:04:49,Update documentation for test_models,tests/test_models.py,12,26
+abc0087xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-01-21 19:04:35,Add feature for user,src/models/user.py,21,19
+abc0088xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-12-24 02:59:47,Add tests for auth,src/models/auth.py,40,2
+abc0089xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-12-31 21:53:55,Add feature for CONTRIBUTING,CONTRIBUTING.md,198,10
+abc0090xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-04-12 13:59:35,Refactor test_models,tests/test_models.py,35,7
+abc0091xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2024-12-10 17:43:12,Update documentation for test_models,tests/test_models.py,98,11
+abc0092xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-03-20 06:08:51,Update documentation for test_utils,tests/test_utils.py,83,13
+abc0093xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-06-05 19:22:12,Refactor test_utils,tests/test_utils.py,22,34
+abc0094xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-02-28 13:46:59,Update dependencies README,README.md,1,10
+abc0095xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-12-02 13:02:21,Update dependencies database.yml,config/database.yml,20,13
+abc0096xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-02-15 04:41:30,Add feature for CONTRIBUTING,CONTRIBUTING.md,83,12
+abc0097xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-03-20 06:49:15,Refactor ci.yml,.github/workflows/ci.yml,15,36
+abc0098xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-07-14 15:37:03,Add feature for auth,src/models/auth.py,180,14
+abc0099xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-03-11 08:21:46,Add tests for ci.yml,.github/workflows/ci.yml,49,1
+abc0100xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2024-11-27 23:52:29,Update dependencies middleware,src/api/middleware.py,4,9
+abc0101xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-01-19 00:10:38,Add tests for auth,src/models/auth.py,43,2
+abc0102xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-06-09 23:24:51,Fix bug in database.yml,config/database.yml,36,39
+abc0103xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-08-08 12:37:11,Refactor auth,src/models/auth.py,32,12
+abc0104xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-04-01 21:31:21,Add tests for settings.json,config/settings.json,27,5
+abc0105xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2024-12-05 20:05:15,Update dependencies CONTRIBUTING,CONTRIBUTING.md,12,9
+abc0106xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-23 10:00:18,Fix bug in test_utils,tests/test_utils.py,42,40
+abc0107xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-01-29 05:59:12,Update dependencies main,src/main.py,8,6
+abc0108xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-03-25 09:32:01,Fix bug in utils,src/utils.py,26,41
+abc0109xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2024-12-20 03:50:13,Add feature for README,README.md,104,12
+abc0110xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-08-31 11:40:31,Update dependencies ci.yml,.github/workflows/ci.yml,16,8
+abc0111xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-03-31 13:37:39,Fix bug in settings.json,config/settings.json,44,16
+abc0112xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-07-04 23:45:54,Update documentation for database.yml,config/database.yml,35,22
+abc0113xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-04-21 01:09:55,Add tests for middleware,src/api/middleware.py,62,0
+abc0114xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-11-14 08:01:12,Update dependencies auth,src/models/auth.py,3,11
+abc0115xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-04-02 20:49:04,Update documentation for README,README.md,76,26
+abc0116xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-06-16 15:01:54,Add tests for test_models,tests/test_models.py,34,5
+abc0117xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-03-30 13:19:12,Add feature for utils,src/utils.py,125,19
+abc0118xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-02-12 13:58:17,Add tests for test_utils,tests/test_utils.py,21,5
+abc0119xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-06-07 00:27:18,Add feature for tutorial,docs/tutorial.md,20,10
+abc0120xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-06-02 08:33:58,Add feature for database.yml,config/database.yml,69,17
+abc0121xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-01-14 07:28:36,Add feature for settings.json,config/settings.json,62,6
+abc0122xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2024-11-13 17:21:49,Fix bug in middleware,src/api/middleware.py,18,24
+abc0123xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-08-01 16:47:30,Fix bug in endpoints,src/api/endpoints.py,49,24
+abc0124xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-06-05 07:52:51,Update documentation for README,README.md,14,35
+abc0125xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-03-19 20:25:23,Update documentation for tutorial,docs/tutorial.md,39,8
+abc0126xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-04-19 01:53:32,Refactor utils,src/utils.py,32,41
+abc0127xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-03-12 11:59:09,Fix bug in endpoints,src/api/endpoints.py,47,15
+abc0128xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-07-21 10:11:23,Fix bug in database.yml,config/database.yml,26,45
+abc0129xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-03-23 12:18:50,Update documentation for CONTRIBUTING,CONTRIBUTING.md,63,27
+abc0130xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-09-12 02:47:44,Refactor utils,src/utils.py,22,22
+abc0131xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-01-06 07:09:54,Refactor CONTRIBUTING,CONTRIBUTING.md,11,11
+abc0132xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-03-11 03:35:23,Refactor tutorial,docs/tutorial.md,18,14
+abc0133xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2024-12-09 16:55:20,Add tests for connection,src/database/connection.py,15,7
+abc0134xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2024-11-21 11:38:50,Add feature for endpoints,src/api/endpoints.py,134,7
+abc0135xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-07-21 21:12:44,Fix bug in test_utils,tests/test_utils.py,41,41
+abc0136xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-04-07 18:23:14,Add feature for middleware,src/api/middleware.py,192,8
+abc0137xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2025-04-22 22:31:51,Add feature for tutorial,docs/tutorial.md,20,3
+abc0138xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2025-01-20 17:06:19,Fix bug in tutorial,docs/tutorial.md,18,5
+abc0139xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-01-29 08:23:46,Refactor test_models,tests/test_models.py,36,13
+abc0140xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-01-08 22:51:17,Update documentation for test_models,tests/test_models.py,74,37
+abc0141xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-01-20 12:07:20,Fix bug in tutorial,docs/tutorial.md,25,10
+abc0142xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Grace Kim,grace@example.com,2025-03-04 15:17:38,Refactor test_models,tests/test_models.py,40,29
+abc0143xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-03-11 03:53:01,Update dependencies endpoints,src/api/endpoints.py,7,6
+abc0144xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Alice Johnson,alice@example.com,2025-05-17 23:21:29,Fix bug in middleware,src/api/middleware.py,32,17
+abc0145xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Bob Smith,bob@example.com,2025-09-01 12:52:25,Update documentation for main,src/main.py,38,43
+abc0146xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Eve Chen,eve@example.com,2024-11-23 21:20:13,Refactor tutorial,docs/tutorial.md,47,8
+abc0147xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Frank Brown,frank@example.com,2025-02-16 01:35:09,Add feature for api,docs/api.md,132,4
+abc0148xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Diana Lopez,diana@example.com,2024-12-17 09:47:59,Add feature for main,src/main.py,53,17
+abc0149xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,Charlie Wang,charlie@example.com,2025-03-29 14:30:26,Add feature for connection,src/database/connection.py,89,16

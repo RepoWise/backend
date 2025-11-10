@@ -107,6 +107,110 @@ class CSVDataEngine:
 
         return result
 
+    def load_from_api_data(self, project_id: str, api_data: Dict) -> Dict[str, bool]:
+        """
+        Load commits and issues data from API response (JSON format)
+
+        Args:
+            project_id: Project identifier
+            api_data: Data from scraping API containing:
+                - commit_devs_files: List of commit records
+                - fetch_github_issues: List of issue records
+
+        Returns:
+            Status dict with loading results
+        """
+        result = {"commits_loaded": False, "issues_loaded": False}
+
+        if project_id not in self.data_cache:
+            self.data_cache[project_id] = {}
+
+        # Load commits from API data
+        commits_data = api_data.get("commit_devs_files", [])
+        if commits_data:
+            try:
+                # Convert list of dicts to DataFrame
+                df = pd.DataFrame(commits_data)
+
+                # Normalize column names to match CSV format
+                # Expected columns: commit_sha, name, email, date/timestamp, message, filename, lines_added, lines_deleted
+                column_mapping = {
+                    "commit_hash": "commit_sha",
+                    "author_name": "name",
+                    "author_email": "email",
+                    "commit_date": "date",
+                    "commit_message": "message",
+                    "file_path": "filename",
+                    # Keep other columns as-is
+                }
+                df = df.rename(columns=column_mapping)
+
+                # Convert date columns to datetime
+                if 'date' in df.columns:
+                    df['date'] = pd.to_datetime(df['date'], utc=True, errors='coerce')
+                if 'date_time' in df.columns:
+                    df['date_time'] = pd.to_datetime(df['date_time'], utc=True, errors='coerce')
+                elif 'timestamp' in df.columns:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True, errors='coerce')
+
+                # Create timestamp alias if not exists
+                if 'timestamp' not in df.columns and 'date' in df.columns:
+                    df['timestamp'] = df['date']
+                elif 'timestamp' not in df.columns and 'date_time' in df.columns:
+                    df['timestamp'] = df['date_time']
+
+                # Ensure required columns exist with default values
+                if 'lines_added' not in df.columns:
+                    df['lines_added'] = 0
+                if 'lines_deleted' not in df.columns:
+                    df['lines_deleted'] = 0
+
+                self.data_cache[project_id]["commits"] = df
+                result["commits_loaded"] = True
+                logger.info(f"✅ Loaded {len(df)} commits from API data for {project_id}")
+            except Exception as e:
+                logger.error(f"Error loading commits from API data: {e}")
+
+        # Load issues from API data
+        issues_data = api_data.get("fetch_github_issues", [])
+        if issues_data:
+            try:
+                # Convert list of dicts to DataFrame
+                df = pd.DataFrame(issues_data)
+
+                # Normalize column names for compatibility
+                column_mapping = {
+                    'number': 'issue_num',
+                    'state': 'issue_state',
+                    'author': 'user_login',
+                    'reporter': 'user_login',
+                    'comments': 'comment_count',
+                    'comments_count': 'comment_count',
+                }
+                df = df.rename(columns=column_mapping)
+
+                # Convert date columns
+                if 'created_at' in df.columns:
+                    df['created_at'] = pd.to_datetime(df['created_at'], utc=True, errors='coerce')
+                if 'updated_at' in df.columns:
+                    df['updated_at'] = pd.to_datetime(df['updated_at'], utc=True, errors='coerce')
+
+                # Add type column if missing (assume all are issues if not specified)
+                if 'type' not in df.columns:
+                    df['type'] = 'issue'
+
+                # Ensure issue_num exists
+                if 'issue_num' not in df.columns and 'number' in df.columns:
+                    df['issue_num'] = df['number']
+
+                self.data_cache[project_id]["issues"] = df
+                result["issues_loaded"] = True
+                logger.info(f"✅ Loaded {len(df)} issues from API data for {project_id}")
+            except Exception as e:
+                logger.error(f"Error loading issues from API data: {e}")
+
+        return result
+
     def query_with_llm(self, project_id: str, query: str, data_type: str = "commits",
                        limit: int = 10) -> Tuple[pd.DataFrame, str]:
         """

@@ -18,6 +18,8 @@ from app.models.llm_client import LLMClient
 from app.models.intent_router import IntentRouter
 from app.data.csv_engine import CSVDataEngine
 from app.models.question_suggester import QuestionSuggester
+from app.data.repo_scraper_client import RepoScraperClient
+from app.data.data_cache_manager import DataCacheManager
 
 router = APIRouter()
 
@@ -29,6 +31,10 @@ llm_client = LLMClient()
 intent_router = IntentRouter(llm_client=llm_client, use_llm_classification=False)
 csv_engine = CSVDataEngine(csv_data_dir="data/csv_data", llm_client=llm_client)
 question_suggester = QuestionSuggester()
+
+# Initialize API-based data fetching components
+repo_scraper = RepoScraperClient()
+cache_manager = DataCacheManager()
 
 # Persistent storage for dynamically added projects
 DYNAMIC_PROJECTS_FILE = Path("data/dynamic_projects.json")
@@ -210,6 +216,111 @@ def parse_github_url(url: str) -> tuple:
             return owner, repo
 
     raise ValueError(f'Invalid GitHub URL: {url}')
+
+
+def _fetch_and_cache_repo_data(owner: str, repo: str, project_id: str) -> dict:
+    """
+    Fetch repository data from API with intelligent caching
+
+    Strategy:
+    1. Check cache first (with freshness validation)
+    2. If cache is fresh, load from cache
+    3. If cache is stale/missing, fetch from API
+    4. Save fresh data to cache
+    5. Load data into csv_engine
+    6. Fallback to CSV auto-discovery if API fails
+
+    Args:
+        owner: GitHub owner/organization name
+        repo: Repository name
+        project_id: Project identifier
+
+    Returns:
+        dict with loading results
+    """
+    result = {
+        "data_source": "unknown",
+        "commits_loaded": False,
+        "issues_loaded": False,
+        "commits_count": 0,
+        "issues_count": 0,
+        "message": "",
+        "cache_used": False,
+        "api_called": False
+    }
+
+    # Step 1: Check cache
+    logger.info(f"🔍 Checking cache for {project_id}...")
+    cache_is_fresh = cache_manager.is_cache_fresh(project_id)
+
+    if cache_is_fresh:
+        # Load from cache
+        logger.info(f"📦 Cache is fresh, loading from cache...")
+        success, data, metadata = cache_manager.load_from_cache(project_id)
+
+        if success and data:
+            # Load cached data into CSV engine
+            load_result = csv_engine.load_from_api_data(project_id, data)
+
+            result["data_source"] = "cache"
+            result["cache_used"] = True
+            result["commits_loaded"] = load_result.get("commits_loaded", False)
+            result["issues_loaded"] = load_result.get("issues_loaded", False)
+            result["commits_count"] = load_result.get("commits_count", 0)
+            result["issues_count"] = load_result.get("issues_count", 0)
+
+            cache_age_hours = metadata.get("age_hours", 0)
+            result["message"] = f"✅ Loaded from cache ({cache_age_hours:.1f}h old) | {result['commits_count']} commits, {result['issues_count']} issues"
+            logger.info(result["message"])
+
+            return result
+
+    # Step 2: Cache is stale or missing, fetch from API
+    github_url = f"https://github.com/{owner}/{repo}"
+    logger.info(f"🌐 Fetching fresh data from API for {github_url}...")
+
+    success, api_data = repo_scraper.scrape_repository(github_url)
+    result["api_called"] = True
+
+    if success:
+        # Step 3: Save to cache
+        logger.info(f"💾 Saving fresh data to cache...")
+        cache_manager.save_to_cache(project_id, github_url, api_data)
+
+        # Step 4: Load into CSV engine
+        load_result = csv_engine.load_from_api_data(project_id, api_data)
+
+        result["data_source"] = "api"
+        result["commits_loaded"] = load_result.get("commits_loaded", False)
+        result["issues_loaded"] = load_result.get("issues_loaded", False)
+        result["commits_count"] = load_result.get("commits_count", 0)
+        result["issues_count"] = load_result.get("issues_count", 0)
+        result["message"] = f"✅ Fetched from API | {result['commits_count']} commits, {result['issues_count']} issues"
+        logger.info(result["message"])
+
+        return result
+    else:
+        # Step 5: API failed, try CSV fallback
+        error_msg = api_data.get("error", "Unknown error")
+        logger.warning(f"⚠️  API fetch failed: {error_msg}")
+        logger.info(f"📂 Attempting CSV fallback for {project_id}...")
+
+        csv_result = _auto_discover_and_load_csvs(owner, repo, project_id)
+
+        if csv_result.get("commits_loaded") or csv_result.get("issues_loaded"):
+            result["data_source"] = "csv_fallback"
+            result["commits_loaded"] = csv_result.get("commits_loaded", False)
+            result["issues_loaded"] = csv_result.get("issues_loaded", False)
+            result["commits_count"] = csv_result.get("commits_count", 0)
+            result["issues_count"] = csv_result.get("issues_count", 0)
+            result["message"] = f"⚠️  API failed, used CSV fallback | {csv_result.get('message', '')}"
+            logger.info(result["message"])
+            return result
+        else:
+            result["data_source"] = "none"
+            result["message"] = f"❌ API failed ({error_msg}) and no CSV fallback available"
+            logger.error(result["message"])
+            return result
 
 
 def _auto_discover_and_load_csvs(owner: str, repo: str, project_id: str) -> dict:
@@ -441,34 +552,66 @@ async def add_repository(request: AddRepositoryRequest):
         dynamic_projects[project_id] = project
         _save_dynamic_projects(dynamic_projects)  # Persist to disk
 
-        # Run governance indexing and CSV loading in parallel for speed
-        logger.info(f"Starting parallel processing: governance indexing + CSV loading for {project_id}")
+        # Run governance indexing first, then start API data fetching in background
+        logger.info(f"Starting governance indexing for {project_id}")
 
         import asyncio
         from concurrent.futures import ThreadPoolExecutor
 
-        # Run both operations in parallel using thread pool
+        # Run governance indexing (this is blocking and must complete)
         loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            # Submit both tasks to run concurrently
+        with ThreadPoolExecutor(max_workers=1) as executor:
             index_future = loop.run_in_executor(
                 executor,
                 rag_engine.index_governance_documents,
                 project_id,
                 gov_data
             )
-            csv_future = loop.run_in_executor(
-                executor,
-                _auto_discover_and_load_csvs,
-                owner,
-                repo,
-                project_id
+            # Wait for governance indexing to complete
+            index_result = await index_future
+
+        # Check if governance indexing failed
+        if "error" in index_result:
+            error_msg = index_result.get("error", "Unknown error during governance indexing")
+            logger.error(f"❌ Governance indexing failed for {project_id}: {error_msg}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to index governance documents: {error_msg}"
             )
 
-            # Wait for both to complete
-            index_result, csv_result = await asyncio.gather(index_future, csv_future)
+        logger.info(f"✅ Governance indexing complete for {project_id}")
 
-        logger.info(f"✅ Parallel processing complete for {project_id}")
+        # Start API data fetching in background (fire-and-forget)
+        # This allows users to start asking governance questions immediately
+        # while commits/issues data loads in the background
+        async def background_data_fetch():
+            try:
+                logger.info(f"Starting background API data fetch for {project_id}")
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    data_result = await loop.run_in_executor(
+                        executor,
+                        _fetch_and_cache_repo_data,
+                        owner,
+                        repo,
+                        project_id
+                    )
+                logger.info(f"✅ Background API data fetch complete for {project_id}: {data_result}")
+            except Exception as e:
+                logger.error(f"❌ Background API data fetch failed for {project_id}: {e}")
+
+        # Create background task (non-blocking)
+        asyncio.create_task(background_data_fetch())
+
+        # Prepare response indicating data is loading in background
+        data_result = {
+            "status": "loading_in_background",
+            "message": "Commits and issues data is being loaded in the background. Governance questions can be asked immediately.",
+            "commits_loaded": False,
+            "issues_loaded": False,
+            "data_source": "pending"
+        }
+
+        logger.info(f"✅ Returning success for {project_id} (API data loading in background)")
 
         return {
             "status": "success",
@@ -479,7 +622,7 @@ async def add_repository(request: AddRepositoryRequest):
                 "extraction_time": gov_data.get("metadata", {}).get("extraction_time_seconds", 0),
             },
             "indexing": index_result,
-            "csv_loading": csv_result,
+            "data_loading": data_result,
             "summary": gov_extractor.get_extraction_summary(gov_data),
         }
 
@@ -489,6 +632,88 @@ async def add_repository(request: AddRepositoryRequest):
         raise
     except Exception as e:
         logger.error(f"Error adding repository: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{project_id}/refresh")
+async def refresh_project_data(project_id: str):
+    """
+    Refresh (invalidate cache and re-fetch) commits and issues data for a project
+
+    This endpoint:
+    1. Invalidates cached data for the project
+    2. Fetches fresh data from the scraping API
+    3. Updates the cache with new data
+    4. Reloads data into the CSV engine
+
+    Useful for getting the latest commits and issues after significant repository activity.
+    """
+    logger.info(f"Refresh data request for project: {project_id}")
+
+    # Find project
+    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
+    if not project and project_id in dynamic_projects:
+        project = dynamic_projects[project_id]
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    try:
+        # Step 1: Invalidate cache
+        logger.info(f"🗑️  Invalidating cache for {project_id}...")
+        cache_manager.invalidate_cache(project_id)
+
+        # Step 2: Fetch fresh data from API
+        owner = project.get("owner")
+        repo = project.get("repo")
+
+        if not owner or not repo:
+            raise HTTPException(
+                status_code=400,
+                detail="Project missing owner or repo information"
+            )
+
+        github_url = f"https://github.com/{owner}/{repo}"
+        logger.info(f"🌐 Fetching fresh data from API for {github_url}...")
+
+        success, api_data = repo_scraper.scrape_repository(github_url)
+
+        if not success:
+            error_msg = api_data.get("error", "Unknown error")
+            error_details = api_data.get("details", "")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch data from API: {error_msg}. {error_details}"
+            )
+
+        # Step 3: Save to cache
+        logger.info(f"💾 Saving fresh data to cache...")
+        cache_manager.save_to_cache(project_id, github_url, api_data)
+
+        # Step 4: Load into CSV engine
+        load_result = csv_engine.load_from_api_data(project_id, api_data)
+
+        # Get metadata from API response
+        metadata = api_data.get("metadata", {})
+
+        return {
+            "status": "success",
+            "message": f"Successfully refreshed data for {owner}/{repo}",
+            "project_id": project_id,
+            "data_loading": {
+                "data_source": "api",
+                "commits_loaded": load_result.get("commits_loaded", False),
+                "issues_loaded": load_result.get("issues_loaded", False),
+                "commits_count": load_result.get("commits_count", 0),
+                "issues_count": load_result.get("issues_count", 0),
+                "fetched_at": metadata.get("fetched_at"),
+                "cache_invalidated": True
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing project data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

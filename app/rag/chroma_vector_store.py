@@ -121,22 +121,30 @@ class ChromaVectorStore:
             embeddings: Pre-computed embeddings
             metadatas: Document metadata
             ids: Unique document IDs
+
+        Raises:
+            ValueError: If no documents provided or all batches failed
+            Exception: If ChromaDB operations fail
         """
         if not documents:
-            logger.warning("No documents to add")
-            return
+            error_msg = "No documents to add"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         collection = self._get_collection(project_id, create_if_missing=True)
 
         # ChromaDB has a batch size limit, process in chunks
         batch_size = 5000
         total_added = 0
+        total_batches = (len(documents) + batch_size - 1) // batch_size
+        failed_batches = []
 
         for i in range(0, len(documents), batch_size):
             batch_docs = documents[i:i + batch_size]
             batch_embeds = embeddings[i:i + batch_size]
             batch_metas = metadatas[i:i + batch_size]
             batch_ids = ids[i:i + batch_size]
+            batch_num = i//batch_size + 1
 
             try:
                 collection.add(
@@ -146,14 +154,26 @@ class ChromaVectorStore:
                     ids=batch_ids
                 )
                 total_added += len(batch_docs)
-                logger.debug(f"Added batch {i//batch_size + 1}: {len(batch_docs)} documents")
+                logger.debug(f"✅ Added batch {batch_num}/{total_batches}: {len(batch_docs)} documents")
             except Exception as e:
-                logger.error(f"Error adding batch to ChromaDB: {e}")
-                # Try to continue with next batch
-                continue
+                error_msg = f"❌ Batch {batch_num}/{total_batches} failed: {e}"
+                logger.error(error_msg)
+                failed_batches.append((batch_num, str(e)))
+                # Continue with next batch but track failures
 
+        # Verify documents were actually added
         total_docs = collection.count()
-        logger.success(f"Added {total_added} documents to {project_id}. Total: {total_docs}")
+
+        if total_added == 0:
+            error_details = "; ".join([f"Batch {num}: {err}" for num, err in failed_batches])
+            error_msg = f"Failed to add any documents to {project_id}. All {total_batches} batches failed. Errors: {error_details}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+
+        if failed_batches:
+            logger.warning(f"⚠️ {len(failed_batches)}/{total_batches} batches failed for {project_id}")
+
+        logger.success(f"✅ Added {total_added}/{len(documents)} documents to {project_id}. Collection total: {total_docs}")
 
     def query(
         self,

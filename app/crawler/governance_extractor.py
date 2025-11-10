@@ -292,6 +292,9 @@ class GovernanceExtractor:
         if use_cache:
             cached = self._load_from_cache(owner, repo_name)
             if cached:
+                files_count = len(cached.get("files", {}))
+                extracted_at = cached.get("extracted_at", "unknown")
+                logger.info(f"✅ Using cached data for {owner}/{repo_name}: {files_count} files (extracted at {extracted_at})")
                 return cached
 
         try:
