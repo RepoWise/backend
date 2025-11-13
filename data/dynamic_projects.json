@@ -52,5 +52,68 @@
     "description": "Custom repository: JakeWharton/ActionBarSherlock",
     "foundation": "Custom",
     "governance_url": "https://github.com/JakeWharton/ActionBarSherlock"
+  },
+  "liquid4all-cookbook": {
+    "id": "liquid4all-cookbook",
+    "name": "cookbook",
+    "owner": "Liquid4All",
+    "repo": "cookbook",
+    "description": "Custom repository: Liquid4All/cookbook",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/Liquid4All/cookbook"
+  },
+  "keras-team-autokeras": {
+    "id": "keras-team-autokeras",
+    "name": "autokeras",
+    "owner": "keras-team",
+    "repo": "autokeras",
+    "description": "Custom repository: keras-team/autokeras",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/keras-team/autokeras"
+  },
+  "oss-prey-ossprey-react-api": {
+    "id": "oss-prey-ossprey-react-api",
+    "name": "OSSPREY-ReACT-API",
+    "owner": "OSS-PREY",
+    "repo": "OSSPREY-ReACT-API",
+    "description": "Custom repository: OSS-PREY/OSSPREY-ReACT-API",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/OSS-PREY/OSSPREY-ReACT-API"
+  },
+  "oss-prey-ossprey-pex-forecaster": {
+    "id": "oss-prey-ossprey-pex-forecaster",
+    "name": "OSSPREY-Pex-Forecaster",
+    "owner": "OSS-PREY",
+    "repo": "OSSPREY-Pex-Forecaster",
+    "description": "Custom repository: OSS-PREY/OSSPREY-Pex-Forecaster",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/OSS-PREY/OSSPREY-Pex-Forecaster"
+  },
+  "oss-prey-ossprey-oss-scraper-tool": {
+    "id": "oss-prey-ossprey-oss-scraper-tool",
+    "name": "OSSPREY-OSS-Scraper-Tool",
+    "owner": "OSS-PREY",
+    "repo": "OSSPREY-OSS-Scraper-Tool",
+    "description": "Custom repository: OSS-PREY/OSSPREY-OSS-Scraper-Tool",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/OSS-PREY/OSSPREY-OSS-Scraper-Tool"
+  },
+  "keras-team-keras-rs": {
+    "id": "keras-team-keras-rs",
+    "name": "keras-rs",
+    "owner": "keras-team",
+    "repo": "keras-rs",
+    "description": "Custom repository: keras-team/keras-rs",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/keras-team/keras-rs"
+  },
+  "vercel-ai": {
+    "id": "vercel-ai",
+    "name": "ai",
+    "owner": "vercel",
+    "repo": "ai",
+    "description": "Custom repository: vercel/ai",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/vercel/ai"
   }
 }
