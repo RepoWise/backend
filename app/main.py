@@ -8,6 +8,8 @@ import sys
 
 from app.core.config import settings
 from app.api import routes
+from app.api import auth_routes
+from app.models.user import init_db
 
 # Configure logger
 logger.remove()
@@ -37,12 +39,21 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(routes.router, prefix=settings.api_prefix)
+app.include_router(auth_routes.router)
 
 
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+
+    # Initialize authentication database
+    try:
+        init_db()
+        logger.success("Authentication database initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize auth database: {e}")
+
     logger.info(f"Ollama Host: {settings.ollama_host}")
     logger.info(f"Ollama Model: {settings.ollama_model}")
     logger.info(f"ChromaDB Path: {settings.chroma_persist_dir}")

@@ -415,7 +415,7 @@ async def add_repository(request: AddRepositoryRequest):
         with ThreadPoolExecutor(max_workers=1) as executor:
             index_future = loop.run_in_executor(
                 executor,
-                rag_engine.index_governance_documents,
+                rag_engine.index_project_documents,
                 project_id,
                 doc_data
             )
