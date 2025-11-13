@@ -40,20 +40,35 @@ class ProjectDocExtractor:
 
     def _check_rate_limit(self):
         """Check and handle GitHub API rate limits"""
-        rate_limit = self.github.get_rate_limit()
-        remaining = rate_limit.core.remaining
+        try:
+            rate_limit = self.github.get_rate_limit()
 
-        logger.debug(f"GitHub API rate limit: {remaining} / {rate_limit.core.limit}")
+            # Handle different PyGithub versions and rate limit structures
+            if hasattr(rate_limit, 'core'):
+                core_limit = rate_limit.core
+            elif hasattr(rate_limit, 'rate'):
+                core_limit = rate_limit.rate
+            else:
+                # If structure is unknown, log and skip rate limit check
+                logger.warning("Unable to determine rate limit structure, skipping check")
+                return
 
-        if remaining < settings.github_rate_limit_threshold:
-            reset_time = rate_limit.core.reset
-            sleep_duration = (reset_time - datetime.now()).total_seconds() + 10
+            remaining = core_limit.remaining
+            limit_total = core_limit.limit
 
-            if sleep_duration > 0:
-                logger.warning(
-                    f"Rate limit low ({remaining}). Sleeping for {sleep_duration:.0f}s"
-                )
-                time.sleep(sleep_duration)
+            logger.debug(f"GitHub API rate limit: {remaining} / {limit_total}")
+
+            if remaining < settings.github_rate_limit_threshold:
+                reset_time = core_limit.reset
+                sleep_duration = (reset_time - datetime.now()).total_seconds() + 10
+
+                if sleep_duration > 0:
+                    logger.warning(
+                        f"Rate limit low ({remaining}). Sleeping for {sleep_duration:.0f}s"
+                    )
+                    time.sleep(sleep_duration)
+        except Exception as e:
+            logger.warning(f"Error checking rate limit: {e}. Continuing without rate limit check.")
 
     def _get_cache_path(self, owner: str, repo: str) -> Path:
         """Generate cache file path for repository"""

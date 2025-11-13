@@ -1,0 +1,102 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Test files and results
+test_*.py
+*_test.py
+test_results/
+test_output/
+*.test
+
+# Documentation (internal use only)
+ACTUAL_SYSTEM_ARCHITECTURE.md
+Prompt_Templates.md
+QUERY_FLOW_SUMMARY.md
+TECHNICAL_DOCUMENTATION.md
+intent_classification_explanation.md
+Q1_*.txt
+Q1_*.json
+
+# Scripts (internal use only)
+manual_ingest*.py
+update_commits_issues*.py
+convert_*.py
+create_test*.py
+comprehensive_eval.py
+
+# Data files (development/testing)
+*.csv
+*.xlsx
+*.json.disabled
+data/cache/
+data/api_cache/
+data/test/
+cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+chromadb/
+*.chroma
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/

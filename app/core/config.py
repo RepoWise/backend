@@ -54,6 +54,42 @@ class Settings(BaseSettings):
         default=60, env="RATE_LIMIT_BACKOFF_SECONDS"
     )
 
+    # Authentication Configuration
+    jwt_secret_key: str = Field(
+        default="your-secret-key-change-in-production-MUST-BE-SECURE-AND-RANDOM-987654321",
+        env="JWT_SECRET_KEY"
+    )
+    database_url: str = Field(
+        default="sqlite:///./auth.db",
+        env="DATABASE_URL"
+    )
+
+    # OAuth Configuration (Optional)
+    google_client_id: str = Field(
+        default="your-google-client-id-here",
+        env="GOOGLE_CLIENT_ID"
+    )
+    google_client_secret: str = Field(
+        default="your-google-client-secret-here",
+        env="GOOGLE_CLIENT_SECRET"
+    )
+    google_redirect_uri: str = Field(
+        default="http://localhost:3000/auth/callback/google",
+        env="GOOGLE_REDIRECT_URI"
+    )
+    github_oauth_client_id: str = Field(
+        default="your-github-client-id-here",
+        env="GITHUB_OAUTH_CLIENT_ID"
+    )
+    github_oauth_client_secret: str = Field(
+        default="your-github-client-secret-here",
+        env="GITHUB_OAUTH_CLIENT_SECRET"
+    )
+    github_oauth_redirect_uri: str = Field(
+        default="http://localhost:3000/auth/callback/github",
+        env="GITHUB_OAUTH_REDIRECT_URI"
+    )
+
     class Config:
         env_file = ".env"
         case_sensitive = False
