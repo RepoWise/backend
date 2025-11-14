@@ -19,7 +19,6 @@ from app.models.intent_router import IntentRouter
 from app.data.csv_engine import CSVDataEngine
 from app.models.question_suggester import QuestionSuggester
 from app.data.repo_scraper_client import RepoScraperClient
-from app.data.data_cache_manager import DataCacheManager
 
 router = APIRouter()
 
@@ -32,38 +31,12 @@ intent_router = IntentRouter(llm_client=llm_client, use_llm_classification=False
 csv_engine = CSVDataEngine(csv_data_dir="data/csv_data", llm_client=llm_client)
 question_suggester = QuestionSuggester()
 
-# Initialize API-based data fetching components
+# Initialize API-based data fetching components (NO CACHING)
 repo_scraper = RepoScraperClient()
-cache_manager = DataCacheManager()
 
-# Persistent storage for dynamically added projects
-DYNAMIC_PROJECTS_FILE = Path("data/dynamic_projects.json")
+# Note: Projects are now stored in ChromaDB only (no JSON file needed)
+# CSV paths still stored in JSON for auto-reload functionality
 CSV_PATHS_FILE = Path("data/csv_paths.json")
-
-
-def _load_dynamic_projects() -> dict:
-    """Load dynamic projects from disk"""
-    if DYNAMIC_PROJECTS_FILE.exists():
-        try:
-            with open(DYNAMIC_PROJECTS_FILE, "r") as f:
-                projects = json.load(f)
-                logger.info(f"📂 Loaded {len(projects)} dynamic projects from disk")
-                return projects
-        except Exception as e:
-            logger.error(f"Error loading dynamic projects: {e}")
-            return {}
-    return {}
-
-
-def _save_dynamic_projects(projects: dict):
-    """Save dynamic projects to disk"""
-    try:
-        DYNAMIC_PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(DYNAMIC_PROJECTS_FILE, "w") as f:
-            json.dump(projects, f, indent=2)
-        logger.debug(f"💾 Saved {len(projects)} dynamic projects to disk")
-    except Exception as e:
-        logger.error(f"Error saving dynamic projects: {e}")
 
 
 def _load_csv_paths() -> dict:
@@ -111,8 +84,7 @@ def _auto_load_csv_data():
             logger.error(f"Error auto-loading CSV for {project_id}: {e}")
 
 
-# Load dynamic projects from disk on startup
-dynamic_projects = _load_dynamic_projects()
+# Note: Projects are now loaded from ChromaDB dynamically (no disk loading needed)
 
 # Auto-load CSV data on startup
 # DISABLED: All commits/issues data now comes from external API (https://ossprey.ngrok.app)
@@ -220,17 +192,14 @@ def parse_github_url(url: str) -> tuple:
     raise ValueError(f'Invalid GitHub URL: {url}')
 
 
-def _fetch_and_cache_repo_data(owner: str, repo: str, project_id: str) -> dict:
+def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
     """
-    Fetch repository data from API with intelligent caching
+    Fetch repository data from API (NO CACHING - always fresh)
 
     Strategy:
-    1. Check cache first (with freshness validation)
-    2. If cache is fresh, load from cache
-    3. If cache is stale/missing, fetch from API
-    4. Save fresh data to cache
-    5. Load data into csv_engine
-    6. Fallback to CSV auto-discovery if API fails
+    1. Fetch from API directly (no cache checks)
+    2. Load data into csv_engine
+    3. Return results
 
     Args:
         owner: GitHub owner/organization name
@@ -241,55 +210,22 @@ def _fetch_and_cache_repo_data(owner: str, repo: str, project_id: str) -> dict:
         dict with loading results
     """
     result = {
-        "data_source": "unknown",
+        "data_source": "api",
         "commits_loaded": False,
         "issues_loaded": False,
         "commits_count": 0,
         "issues_count": 0,
         "message": "",
-        "cache_used": False,
-        "api_called": False
     }
 
-    # Step 1: Check cache
-    logger.info(f"🔍 Checking cache for {project_id}...")
-    cache_is_fresh = cache_manager.is_cache_fresh(project_id)
-
-    if cache_is_fresh:
-        # Load from cache
-        logger.info(f"📦 Cache is fresh, loading from cache...")
-        success, data, metadata = cache_manager.load_from_cache(project_id)
-
-        if success and data:
-            # Load cached data into CSV engine
-            load_result = csv_engine.load_from_api_data(project_id, data)
-
-            result["data_source"] = "cache"
-            result["cache_used"] = True
-            result["commits_loaded"] = load_result.get("commits_loaded", False)
-            result["issues_loaded"] = load_result.get("issues_loaded", False)
-            result["commits_count"] = load_result.get("commits_count", 0)
-            result["issues_count"] = load_result.get("issues_count", 0)
-
-            cache_age_hours = metadata.get("age_hours", 0)
-            result["message"] = f"✅ Loaded from cache ({cache_age_hours:.1f}h old) | {result['commits_count']} commits, {result['issues_count']} issues"
-            logger.info(result["message"])
-
-            return result
-
-    # Step 2: Cache is stale or missing, fetch from API
+    # Fetch fresh data from API (no caching)
     github_url = f"https://github.com/{owner}/{repo}"
-    logger.info(f"🌐 Fetching fresh data from API for {github_url}...")
+    logger.info(f"🌐 Fetching fresh data from API for {github_url} (no cache)...")
 
     success, api_data = repo_scraper.scrape_repository(github_url)
-    result["api_called"] = True
 
     if success:
-        # Step 3: Save to cache
-        logger.info(f"💾 Saving fresh data to cache...")
-        cache_manager.save_to_cache(project_id, github_url, api_data)
-
-        # Step 4: Load into CSV engine
+        # Load into CSV engine
         load_result = csv_engine.load_from_api_data(project_id, api_data)
 
         result["data_source"] = "api"
@@ -302,7 +238,7 @@ def _fetch_and_cache_repo_data(owner: str, repo: str, project_id: str) -> dict:
 
         return result
     else:
-        # API failed - no fallback to manually added CSV files
+        # API failed
         error_msg = api_data.get("error", "Unknown error")
         logger.error(f"❌ API fetch failed: {error_msg}")
 
@@ -347,11 +283,15 @@ async def system_status():
 
 @router.get("/projects", response_model=List[Project])
 async def list_projects():
-    """Get list of available OSS projects (flagship + dynamic)"""
-    all_projects = list(FLAGSHIP_PROJECTS)
-    # Add dynamically added projects
-    all_projects.extend(dynamic_projects.values())
-    return all_projects
+    """Get list of indexed projects from ChromaDB (no cache, no JSON)"""
+    # Get all projects directly from ChromaDB vector store
+    try:
+        all_projects = rag_engine.vector_store.list_all_projects()
+        logger.info(f"Listed {len(all_projects)} projects from ChromaDB")
+        return all_projects
+    except Exception as e:
+        logger.error(f"Error listing projects from ChromaDB: {e}")
+        return []
 
 
 @router.post("/projects/add")
@@ -364,32 +304,30 @@ async def add_repository(request: AddRepositoryRequest):
         owner, repo = parse_github_url(request.github_url)
         project_id = f"{owner}-{repo}".lower()
 
-        # Check if project already exists
-        existing = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-        if existing:
-            return {
-                "status": "already_exists",
-                "message": f"Project {owner}/{repo} already exists as a flagship project",
-                "project": existing,
-            }
+        # Check if project already exists in ChromaDB (single source of truth)
+        if rag_engine.vector_store.project_exists(project_id):
+            logger.info(f"Project {project_id} already indexed in ChromaDB")
+            # Get project info from ChromaDB
+            existing_projects = rag_engine.vector_store.list_all_projects()
+            existing = next((p for p in existing_projects if p["id"] == project_id), None)
 
-        if project_id in dynamic_projects:
-            return {
-                "status": "already_exists",
-                "message": f"Project {owner}/{repo} has already been added",
-                "project": dynamic_projects[project_id],
-            }
+            if existing:
+                return {
+                    "status": "already_exists",
+                    "message": f"Project {owner}/{repo} is already indexed in the system",
+                    "project": existing,
+                }
 
-        # Extract project documents
-        logger.info(f"Extracting project documents for {owner}/{repo}")
-        doc_data = doc_extractor.extract_project_documents(owner, repo, use_cache=True)
+        # Extract project documents (NO CACHING - always fresh)
+        logger.info(f"Extracting project documents for {owner}/{repo} (no cache)")
+        doc_data = doc_extractor.extract_project_documents(owner, repo, use_cache=False)
 
         if "error" in doc_data:
             raise HTTPException(
                 status_code=400, detail=f"Error extracting project docs: {doc_data['error']}"
             )
 
-        # Create project object
+        # Create project object for response (metadata stored in ChromaDB)
         project = {
             "id": project_id,
             "name": repo,
@@ -400,9 +338,7 @@ async def add_repository(request: AddRepositoryRequest):
             "governance_url": f"https://github.com/{owner}/{repo}",
         }
 
-        # Store in dynamic projects
-        dynamic_projects[project_id] = project
-        _save_dynamic_projects(dynamic_projects)  # Persist to disk
+        # Note: No need to store in dynamic_projects - ChromaDB is our single source of truth
 
         # Run governance indexing first, then start API data fetching in background
         logger.info(f"Starting governance indexing for {project_id}")
@@ -442,7 +378,7 @@ async def add_repository(request: AddRepositoryRequest):
                 with ThreadPoolExecutor(max_workers=1) as executor:
                     data_result = await loop.run_in_executor(
                         executor,
-                        _fetch_and_cache_repo_data,
+                        _fetch_repo_data,
                         owner,
                         repo,
                         project_id
@@ -490,31 +426,27 @@ async def add_repository(request: AddRepositoryRequest):
 @router.post("/projects/{project_id}/refresh")
 async def refresh_project_data(project_id: str):
     """
-    Refresh (invalidate cache and re-fetch) commits and issues data for a project
+    Refresh commits and issues data for a project (NO CACHING - always fresh)
 
     This endpoint:
-    1. Invalidates cached data for the project
-    2. Fetches fresh data from the scraping API
-    3. Updates the cache with new data
-    4. Reloads data into the CSV engine
+    1. Fetches fresh data from the scraping API
+    2. Reloads data into the CSV engine
 
     Useful for getting the latest commits and issues after significant repository activity.
     """
     logger.info(f"Refresh data request for project: {project_id}")
 
-    # Find project
+    # Find project (check flagship projects first, then ChromaDB)
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project and project_id in dynamic_projects:
-        project = dynamic_projects[project_id]
+    if not project:
+        # Try to get from ChromaDB
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
-        # Step 1: Invalidate cache
-        logger.info(f"🗑️  Invalidating cache for {project_id}...")
-        cache_manager.invalidate_cache(project_id)
-
-        # Step 2: Fetch fresh data from API
+        # Get owner and repo info
         owner = project.get("owner")
         repo = project.get("repo")
 
@@ -524,42 +456,20 @@ async def refresh_project_data(project_id: str):
                 detail="Project missing owner or repo information"
             )
 
-        github_url = f"https://github.com/{owner}/{repo}"
-        logger.info(f"🌐 Fetching fresh data from API for {github_url}...")
+        # Fetch fresh data from API (no cache)
+        data_result = _fetch_repo_data(owner, repo, project_id)
 
-        success, api_data = repo_scraper.scrape_repository(github_url)
-
-        if not success:
-            error_msg = api_data.get("error", "Unknown error")
-            error_details = api_data.get("details", "")
+        if data_result.get("data_source") == "none":
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to fetch data from API: {error_msg}. {error_details}"
+                detail=data_result.get("message", "Failed to fetch data from API")
             )
-
-        # Step 3: Save to cache
-        logger.info(f"💾 Saving fresh data to cache...")
-        cache_manager.save_to_cache(project_id, github_url, api_data)
-
-        # Step 4: Load into CSV engine
-        load_result = csv_engine.load_from_api_data(project_id, api_data)
-
-        # Get metadata from API response
-        metadata = api_data.get("metadata", {})
 
         return {
             "status": "success",
             "message": f"Successfully refreshed data for {owner}/{repo}",
             "project_id": project_id,
-            "data_loading": {
-                "data_source": "api",
-                "commits_loaded": load_result.get("commits_loaded", False),
-                "issues_loaded": load_result.get("issues_loaded", False),
-                "commits_count": load_result.get("commits_count", 0),
-                "issues_count": load_result.get("issues_count", 0),
-                "fetched_at": metadata.get("fetched_at"),
-                "cache_invalidated": True
-            }
+            "data_loading": data_result
         }
 
     except HTTPException:
@@ -572,12 +482,13 @@ async def refresh_project_data(project_id: str):
 @router.get("/projects/{project_id}")
 async def get_project(project_id: str):
     """Get details for a specific project"""
-    # Check flagship projects first
+    # Check flagship projects first, then ChromaDB
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
 
-    # Then check dynamic projects
-    if not project and project_id in dynamic_projects:
-        project = dynamic_projects[project_id]
+    if not project:
+        # Try to get from ChromaDB
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == project_id), None)
 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -611,10 +522,12 @@ async def load_csv_data(project_id: str, request: LoadCSVRequest):
     """
     logger.info(f"Load CSV request for project: {project_id}")
 
-    # Verify project exists
+    # Verify project exists (check flagship projects first, then ChromaDB)
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project and project_id in dynamic_projects:
-        project = dynamic_projects[project_id]
+    if not project:
+        # Try to get from ChromaDB
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -660,10 +573,12 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, u
     """Crawl and index project documents for a project"""
     logger.info(f"Crawl request for project: {project_id}")
 
-    # Find project in both flagship and dynamic projects
+    # Find project (check flagship projects first, then ChromaDB)
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project and project_id in dynamic_projects:
-        project = dynamic_projects[project_id]
+    if not project:
+        # Try to get from ChromaDB
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -707,10 +622,12 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, u
 @router.get("/governance/{project_id}")
 async def get_governance_data(project_id: str):
     """Get cached governance data for a project"""
-    # Find project in both flagship and dynamic projects
+    # Find project (check flagship projects first, then ChromaDB)
     project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project and project_id in dynamic_projects:
-        project = dynamic_projects[project_id]
+    if not project:
+        # Try to get from ChromaDB
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -836,8 +753,10 @@ async def query_project_docs(request: QueryRequest):
             )
 
         project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None)
-        if not project and request.project_id in dynamic_projects:
-            project = dynamic_projects[request.project_id]
+        if not project:
+            # Try to get from ChromaDB
+            all_projects = rag_engine.vector_store.list_all_projects()
+            project = next((p for p in all_projects if p["id"] == request.project_id), None)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -1092,12 +1011,14 @@ async def query_project_docs_stream(request: QueryRequest):
         f"Stream query request for project {request.project_id}: '{request.query}'"
     )
 
-    # Verify project exists (check both flagship and dynamic projects)
+    # Verify project exists (check flagship projects first, then ChromaDB)
     project = next(
         (p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None
     )
-    if not project and request.project_id in dynamic_projects:
-        project = dynamic_projects[request.project_id]
+    if not project:
+        # Try to get from ChromaDB
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == request.project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 

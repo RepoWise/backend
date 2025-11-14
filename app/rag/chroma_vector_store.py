@@ -465,3 +465,111 @@ class ChromaVectorStore:
             logger.warning("ChromaDB reset - all data cleared!")
         except Exception as e:
             logger.error(f"Error resetting ChromaDB: {e}")
+
+    def project_exists(self, project_id: str) -> bool:
+        """
+        Check if a project already has an indexed collection
+
+        Args:
+            project_id: Project identifier to check
+
+        Returns:
+            True if project collection exists, False otherwise
+        """
+        collection_name = f"project_docs_{project_id}".replace("/", "_").replace(".", "_")
+        try:
+            all_collections = [col.name for col in self.client.list_collections()]
+            exists = collection_name in all_collections
+            logger.debug(f"Project {project_id} exists in ChromaDB: {exists}")
+            return exists
+        except Exception as e:
+            logger.error(f"Error checking project existence: {e}")
+            return False
+
+    def list_all_projects(self) -> List[Dict]:
+        """
+        List all indexed projects from ChromaDB collections
+
+        Returns:
+            List of project dictionaries with metadata
+        """
+        try:
+            all_collections = self.client.list_collections()
+            projects = []
+
+            for collection in all_collections:
+                if collection.name.startswith("project_docs_"):
+                    # Extract project_id from collection name
+                    project_id = collection.name.replace("project_docs_", "")
+
+                    # Parse owner and repo from project_id
+                    parts = project_id.split("-", 1)
+                    if len(parts) == 2:
+                        owner, repo = parts
+                    else:
+                        owner = project_id
+                        repo = project_id
+
+                    project = {
+                        "id": project_id,
+                        "name": repo,
+                        "owner": owner,
+                        "repo": repo,
+                        "description": f"Repository: {owner}/{repo}",
+                        "foundation": "Custom",
+                        "governance_url": f"https://github.com/{owner}/{repo}",
+                        "document_count": collection.count(),
+                        "indexed": True
+                    }
+                    projects.append(project)
+
+            logger.info(f"Found {len(projects)} indexed projects in ChromaDB")
+            return projects
+
+        except Exception as e:
+            logger.error(f"Error listing projects from ChromaDB: {e}")
+            return []
+
+    def deduplicate_results(self, results: Dict) -> Dict:
+        """
+        Remove duplicate documents from search results
+        Keep only the first occurrence of each unique document
+
+        Args:
+            results: ChromaDB query results
+
+        Returns:
+            Deduplicated results with same structure
+        """
+        if not results or not results.get('documents') or not results['documents'][0]:
+            return results
+
+        seen_docs = set()
+        deduped_docs = []
+        deduped_metas = []
+        deduped_dists = []
+        deduped_ids = []
+
+        for i, doc in enumerate(results['documents'][0]):
+            # Create a hash of the document content to detect duplicates
+            doc_hash = hashlib.md5(doc.encode('utf-8')).hexdigest()
+
+            if doc_hash not in seen_docs:
+                seen_docs.add(doc_hash)
+                deduped_docs.append(doc)
+                deduped_metas.append(results['metadatas'][0][i])
+                deduped_dists.append(results['distances'][0][i])
+                deduped_ids.append(results['ids'][0][i])
+
+        original_count = len(results['documents'][0])
+        deduped_count = len(deduped_docs)
+
+        if original_count > deduped_count:
+            logger.info(f"Deduplicated results: {original_count} → {deduped_count} documents")
+
+        return {
+            'documents': [deduped_docs],
+            'metadatas': [deduped_metas],
+            'distances': [deduped_dists],
+            'ids': [deduped_ids]
+        }

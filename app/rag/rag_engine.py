@@ -622,6 +622,9 @@ Do not include any explanation or additional text."""
                 where=where_clause if where_clause else None
             )
 
+            # Deduplicate results to handle any potential duplicates
+            results = self.vector_store.deduplicate_results(results)
+
             # Format results
             formatted_results = []
             if results and results["documents"] and results["documents"][0]:
