@@ -115,5 +115,41 @@
     "description": "Custom repository: vercel/ai",
     "foundation": "Custom",
     "governance_url": "https://github.com/vercel/ai"
+  },
+  "vercel-workflow": {
+    "id": "vercel-workflow",
+    "name": "workflow",
+    "owner": "vercel",
+    "repo": "workflow",
+    "description": "Custom repository: vercel/workflow",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/vercel/workflow"
+  },
+  "google-adk-go": {
+    "id": "google-adk-go",
+    "name": "adk-go",
+    "owner": "google",
+    "repo": "adk-go",
+    "description": "Custom repository: google/adk-go",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/google/adk-go"
+  },
+  "pandas-dev-pandas-stubs": {
+    "id": "pandas-dev-pandas-stubs",
+    "name": "pandas-stubs",
+    "owner": "pandas-dev",
+    "repo": "pandas-stubs",
+    "description": "Custom repository: pandas-dev/pandas-stubs",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/pandas-dev/pandas-stubs"
+  },
+  "google-device-infra": {
+    "id": "google-device-infra",
+    "name": "device-infra",
+    "owner": "google",
+    "repo": "device-infra",
+    "description": "Custom repository: google/device-infra",
+    "foundation": "Custom",
+    "governance_url": "https://github.com/google/device-infra"
   }
 }

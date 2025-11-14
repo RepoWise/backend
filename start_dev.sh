@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# OSSPREY Development Startup Script
+# RepoWise Development Startup Script
 # Launches with hot reload
 
-echo "🛠️  Starting OSSPREY Backend in DEVELOPMENT mode..."
+echo "🛠️  Starting RepoWise Backend in DEVELOPMENT mode..."
 
 # Activate virtual environment
 source venv/bin/activate
@@ -15,4 +15,4 @@ python3 -m uvicorn app.main:app \
     --reload \
     --log-level debug
 
-echo "✅ OSSPREY Backend running on http://0.0.0.0:8000 with hot reload"
+echo "✅ RepoWise Backend running on http://0.0.0.0:8000 with hot reload"

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# OSSPREY Production Startup Script
+# RepoWise Production Startup Script
 # Launches with multiple Uvicorn workers for high performance
 
-echo "🚀 Starting OSSPREY Backend in PRODUCTION mode..."
+echo "🚀 Starting RepoWise Backend in PRODUCTION mode..."
 
 # Detect number of CPU cores
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -37,4 +37,4 @@ python3 -m uvicorn app.main:app \
     --proxy-headers \
     --forwarded-allow-ips='*'
 
-echo "✅ OSSPREY Backend running on http://0.0.0.0:8000 with $WORKERS workers"
+echo "✅ RepoWise Backend running on http://0.0.0.0:8000 with $WORKERS workers"
