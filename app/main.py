@@ -1,7 +1,7 @@
 """
 Main FastAPI application for RepoWise
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 import sys
@@ -32,9 +32,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=settings.cors_allow_methods,
+    allow_headers=settings.cors_allow_headers,
 )
 
 # Include API routes
@@ -76,6 +76,48 @@ async def root():
         "docs": "/docs",
         "api": settings.api_prefix,
     }
+
+
+def _build_cors_preflight_response(request: Request) -> Response:
+    """Create a CORS preflight response with the configured headers."""
+    response = Response(status_code=200)
+    origin = request.headers.get("origin")
+
+    if "*" in settings.cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    elif origin and origin in settings.cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    elif settings.cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = settings.cors_origins[0]
+
+    response.headers["Access-Control-Allow-Methods"] = ", ".join(
+        settings.cors_allow_methods
+    )
+
+    request_headers = request.headers.get("access-control-request-headers")
+    if request_headers:
+        response.headers["Access-Control-Allow-Headers"] = request_headers
+    else:
+        response.headers["Access-Control-Allow-Headers"] = ", ".join(
+            settings.cors_allow_headers
+        )
+
+    if settings.cors_allow_credentials:
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    return response
+
+
+@app.options("/")
+async def options_root(request: Request) -> Response:
+    """Handle root preflight CORS requests."""
+    return _build_cors_preflight_response(request)
+
+
+@app.options("/{rest_of_path:path}")
+async def options_catch_all(rest_of_path: str, request: Request) -> Response:
+    """Handle preflight CORS requests for any route."""
+    return _build_cors_preflight_response(request)
 
 
 if __name__ == "__main__":
