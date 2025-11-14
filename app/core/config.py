@@ -1,10 +1,9 @@
 """
 Core configuration module for RepWise
 """
-from __future__ import annotations
-
-import json
-import re
+from typing import List
+from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 from pathlib import Path
 from typing import Iterable, List
 
@@ -46,8 +45,8 @@ class Settings(BaseSettings):
 
     # API Configuration
     api_prefix: str = Field(default="/api", env="API_PREFIX")
-    cors_origins: List[str] | str = Field(
-        default_factory=lambda: [
+    cors_origins: List[str] = Field(
+        default=[
             "https://repowise.netlify.app",
             "https://tianna-unretractive-ellen.ngrok-free.dev",
             "http://localhost:3000",
@@ -59,24 +58,12 @@ class Settings(BaseSettings):
         default=True,
         env="CORS_ALLOW_CREDENTIALS",
     )
-    cors_allow_methods: List[str] | str = Field(
-        default_factory=lambda: [
-            "OPTIONS",
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-        ],
+    cors_allow_methods: List[str] = Field(
+        default=["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
         env="CORS_ALLOW_METHODS",
     )
-    cors_allow_headers: List[str] | str = Field(
-        default_factory=lambda: [
-            "Authorization",
-            "Content-Type",
-            "Accept",
-            "Origin",
-        ],
+    cors_allow_headers: List[str] = Field(
+        default=["Authorization", "Content-Type", "Accept", "Origin"],
         env="CORS_ALLOW_HEADERS",
     )
 
@@ -134,78 +121,15 @@ class Settings(BaseSettings):
         Path(self.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
-    @model_validator(mode="before")
+    @field_validator(
+        "cors_origins", "cors_allow_methods", "cors_allow_headers", mode="before"
+    )
     @classmethod
-    def normalize_list_fields(cls, values: dict) -> dict:
-        """Normalize comma/space separated environment overrides for list settings."""
-
-        def _normalize(value: object) -> List[str]:
-            if value is None or value == "":
-                return []
-
-            # Accept JSON-style arrays without raising validation errors
-            if isinstance(value, str):
-                text = value.strip()
-                if text and text[0] in "[\"" and text.endswith("]"):
-                    try:
-                        parsed = json.loads(text)
-                    except json.JSONDecodeError:
-                        parsed = text
-                    else:
-                        value = parsed
-                else:
-                    # Split on commas or whitespace sequences
-                    tokens = re.split(r"[,\s]+", text)
-                    cleaned = []
-                    for token in tokens:
-                        normalized = cls._clean_token(token)
-                        if normalized:
-                            cleaned.append(normalized)
-                    return cleaned
-
-            if isinstance(value, (list, tuple, set)):
-                iterable: Iterable[object] = value
-            else:
-                iterable = [value]
-
-            cleaned: List[str] = []
-            for item in iterable:
-                normalized = cls._clean_token(item)
-                if normalized:
-                    cleaned.append(normalized)
-
-            return cleaned
-
-        for field_name in ("cors_origins", "cors_allow_methods", "cors_allow_headers"):
-            if field_name in values:
-                values[field_name] = _normalize(values[field_name])
-
-        return values
-
-    @staticmethod
-    def _clean_token(value: object) -> str:
-        """Return a normalized string token for CORS configuration entries."""
-
-        if value is None:
-            return ""
-
-        token = str(value).strip()
-        if not token:
-            return ""
-
-        if token != "*":
-            token = token.rstrip("/")
-
-        return token
-
-    def is_origin_allowed(self, origin: str | None) -> bool:
-        """Determine whether the supplied origin is allowed by configuration."""
-
-        if origin is None:
-            return False
-
-        origin = origin.strip().rstrip("/")
-        return "*" in self.cors_origins or origin in self.cors_origins
+    def split_comma_separated_values(cls, value):
+        """Ensure comma separated environment values become lists."""
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
 
 # Global settings instance

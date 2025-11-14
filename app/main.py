@@ -83,24 +83,12 @@ def _build_cors_preflight_response(request: Request) -> Response:
     response = Response(status_code=200)
     origin = request.headers.get("origin")
 
-    if settings.cors_allow_credentials and "*" in settings.cors_origins:
-        # Browsers reject wildcard origins when credentials are allowed. Fall back to the
-        # request origin only if it is explicitly permitted.
-        allowed_origin = origin if settings.is_origin_allowed(origin) else None
-    elif settings.is_origin_allowed(origin):
-        allowed_origin = origin.strip().rstrip("/") if origin else None
-    elif "*" in settings.cors_origins:
-        allowed_origin = "*"
-    else:
-        allowed_origin = None
-
-    if allowed_origin:
-        response.headers["Access-Control-Allow-Origin"] = allowed_origin
-        vary_header = response.headers.get("Vary")
-        if not vary_header:
-            response.headers["Vary"] = "Origin"
-        elif "origin" not in {value.strip().lower() for value in vary_header.split(",")}:
-            response.headers["Vary"] = f"{vary_header}, Origin"
+    if "*" in settings.cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    elif origin and origin in settings.cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    elif settings.cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = settings.cors_origins[0]
 
     response.headers["Access-Control-Allow-Methods"] = ", ".join(
         settings.cors_allow_methods
@@ -114,7 +102,7 @@ def _build_cors_preflight_response(request: Request) -> Response:
             settings.cors_allow_headers
         )
 
-    if settings.cors_allow_credentials and allowed_origin:
+    if settings.cors_allow_credentials:
         response.headers["Access-Control-Allow-Credentials"] = "true"
 
     return response
