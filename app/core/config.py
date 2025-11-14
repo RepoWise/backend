@@ -5,19 +5,10 @@ from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
 from pathlib import Path
-from typing import Iterable, List
-
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=False,
-    )
 
     # GitHub Configuration
     github_token: str = Field(..., env="GITHUB_TOKEN")
@@ -114,6 +105,10 @@ class Settings(BaseSettings):
         default="http://localhost:3000/auth/callback/github",
         env="GITHUB_OAUTH_REDIRECT_URI"
     )
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
