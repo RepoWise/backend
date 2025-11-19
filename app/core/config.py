@@ -3,8 +3,7 @@ Core configuration module for RepWise
 """
 from typing import List
 from pydantic_settings import BaseSettings
-from pydantic import Field
-import os
+from pydantic import Field, field_validator
 from pathlib import Path
 
 
@@ -38,8 +37,25 @@ class Settings(BaseSettings):
     # API Configuration
     api_prefix: str = Field(default="/api", env="API_PREFIX")
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173"],
+        default=[
+            "https://repowise.netlify.app",
+            "https://tianna-unretractive-ellen.ngrok-free.dev",
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ],
         env="CORS_ORIGINS",
+    )
+    cors_allow_credentials: bool = Field(
+        default=True,
+        env="CORS_ALLOW_CREDENTIALS",
+    )
+    cors_allow_methods: List[str] = Field(
+        default=["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
+        env="CORS_ALLOW_METHODS",
+    )
+    cors_allow_headers: List[str] = Field(
+        default=["Authorization", "Content-Type", "Accept", "Origin"],
+        env="CORS_ALLOW_HEADERS",
     )
 
     # Rate Limiting
@@ -94,6 +110,16 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         # Create necessary directories
         Path(self.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
+
+    @field_validator(
+        "cors_origins", "cors_allow_methods", "cors_allow_headers", mode="before"
+    )
+    @classmethod
+    def split_comma_separated_values(cls, value):
+        """Ensure comma separated environment values become lists."""
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
 
 # Global settings instance
