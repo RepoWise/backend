@@ -42,10 +42,6 @@ class Settings(BaseSettings):
         env="CORS_ORIGINS",
     )
 
-    # Cache Configuration
-    cache_dir: str = Field(default="../data/cache", env="CACHE_DIR")
-    cache_ttl_seconds: int = Field(default=86400, env="CACHE_TTL_SECONDS")
-
     # Rate Limiting
     github_rate_limit_threshold: int = Field(
         default=100, env="GITHUB_RATE_LIMIT_THRESHOLD"
@@ -98,7 +94,6 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         # Create necessary directories
         Path(self.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
-        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
 
 
 # Global settings instance

@@ -23,18 +23,15 @@ class CSVDataEngine:
     - Contributor analysis
     """
 
-    def __init__(self, csv_data_dir: str = "data/csv_data", llm_client=None):
-        """Initialize CSV data engine"""
-        self.csv_data_dir = Path(csv_data_dir)
-        self.csv_data_dir.mkdir(parents=True, exist_ok=True)
-
+    def __init__(self, llm_client=None):
+        """Initialize CSV data engine with in-memory storage"""
         # In-memory cache: {project_id: {"commits": df, "issues": df}}
         self.data_cache: Dict[str, Dict[str, pd.DataFrame]] = {}
 
         # LLM client for dynamic query generation
         self.llm_client = llm_client
 
-        logger.info(f"CSV Data Engine initialized: {self.csv_data_dir}")
+        logger.info("CSV Data Engine initialized (in-memory storage)")
 
     def load_project_data(self, project_id: str, commits_path: Optional[str] = None,
                          issues_path: Optional[str] = None) -> Dict[str, bool]:
@@ -107,7 +104,7 @@ class CSVDataEngine:
 
         return result
 
-    def load_from_api_data(self, project_id: str, api_data: Dict) -> Dict[str, bool]:
+    def load_from_api_data(self, project_id: str, api_data: Dict) -> Dict:
         """
         Load commits and issues data from API response (JSON format)
 
@@ -118,9 +115,14 @@ class CSVDataEngine:
                 - fetch_github_issues: List of issue records
 
         Returns:
-            Status dict with loading results
+            Status dict with loading results and counts
         """
-        result = {"commits_loaded": False, "issues_loaded": False}
+        result = {
+            "commits_loaded": False,
+            "issues_loaded": False,
+            "commits_count": 0,
+            "issues_count": 0
+        }
 
         if project_id not in self.data_cache:
             self.data_cache[project_id] = {}
@@ -167,6 +169,7 @@ class CSVDataEngine:
 
                 self.data_cache[project_id]["commits"] = df
                 result["commits_loaded"] = True
+                result["commits_count"] = len(df)
                 logger.info(f"✅ Loaded {len(df)} commits from API data for {project_id}")
             except Exception as e:
                 logger.error(f"Error loading commits from API data: {e}")
@@ -205,6 +208,7 @@ class CSVDataEngine:
 
                 self.data_cache[project_id]["issues"] = df
                 result["issues_loaded"] = True
+                result["issues_count"] = len(df)
                 logger.info(f"✅ Loaded {len(df)} issues from API data for {project_id}")
             except Exception as e:
                 logger.error(f"Error loading issues from API data: {e}")
@@ -720,6 +724,25 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             "commits": "commits" in self.data_cache[project_id],
             "issues": "issues" in self.data_cache[project_id]
         }
+
+    def has_project_data(self, project_id: str) -> bool:
+        """
+        Check if project has commits or issues data loaded in cache
+
+        Args:
+            project_id: Project identifier to check
+
+        Returns:
+            True if project has any data (commits or issues), False otherwise
+        """
+        if project_id not in self.data_cache:
+            return False
+
+        project_data = self.data_cache[project_id]
+        has_commits = "commits" in project_data and not project_data["commits"].empty
+        has_issues = "issues" in project_data and not project_data["issues"].empty
+
+        return has_commits or has_issues
 
     def get_stats(self) -> Dict:
         """Get overall statistics"""

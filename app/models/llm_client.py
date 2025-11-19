@@ -350,7 +350,7 @@ Your answer:"""
         query: str,
         context: str,
         project_name: str = "the project",
-        temperature: float = 0.3,
+        temperature: float = 0,
         max_tokens: int = 1000,
         conversation_history: Optional[List[Dict]] = None,
         query_type: str = "general",
@@ -376,20 +376,16 @@ Your answer:"""
             query_type=query_type
         )
 
-        # Use more conservative sampling parameters for factual accuracy
-        # Lower temperature and top_p reduce hallucination risk
-        actual_temperature = min(temperature, 0.2) if query_type != "general" else temperature
-
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": actual_temperature,  # Lower for factual queries
+                "temperature": temperature,
                 "num_predict": max_tokens,
-                "top_p": 0.7,  # Reduced from 0.9 for more focused sampling
-                "top_k": 20,   # Reduced from 40 for more deterministic output
-                "repeat_penalty": 1.1,  # Prevent repetition
+                "top_p": 1,
+                "top_k": 1,
+                "repeat_penalty": 1.1,
             },
         }
 
@@ -427,7 +423,7 @@ Your answer:"""
         query: str,
         context: str,
         project_name: str = "the project",
-        temperature: float = 0.3,
+        temperature: float = 0,
         max_tokens: int = 1000,
         conversation_history: Optional[List[Dict]] = None,
         query_type: str = "general",
@@ -453,18 +449,15 @@ Your answer:"""
             query_type=query_type
         )
 
-        # Use same conservative sampling as non-streaming
-        actual_temperature = min(temperature, 0.2) if query_type != "general" else temperature
-
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": True,
             "options": {
-                "temperature": actual_temperature,
+                "temperature": temperature,
                 "num_predict": max_tokens,
-                "top_p": 0.7,
-                "top_k": 20,
+                "top_p": 1,
+                "top_k": 1,
                 "repeat_penalty": 1.1,
             },
         }
@@ -536,7 +529,7 @@ Your answer:"""
     def generate_simple(
         self,
         prompt: str,
-        temperature: float = 0.1,
+        temperature: float = 0,
         max_tokens: int = 100,
     ) -> str:
         """
@@ -557,8 +550,8 @@ Your answer:"""
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
-                "top_p": 0.9,
-                "top_k": 40,
+                "top_p": 1,
+                "top_k": 1,
             },
         }
 
@@ -579,7 +572,7 @@ Your answer:"""
         query: str,
         context: str,
         project_name: str = "the project",
-        temperature: float = 0.3,
+        temperature: float = 0,
         max_tokens: int = 1000,
     ) -> Dict:
         """
@@ -604,8 +597,8 @@ Your answer:"""
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
-                "top_p": 0.9,
-                "top_k": 40,
+                "top_p": 1,
+                "top_k": 1,
             },
         }
 

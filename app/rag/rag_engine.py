@@ -365,8 +365,8 @@ USER QUERY: "{query}"
 Respond with ONLY the category name (PROJECT_DESCRIPTION, SUSTAINABILITY, MAIN_ISSUE, DESCRIBE, or OTHER).
 Do not include any explanation or additional text."""
 
-            # Use fast, low-temperature generation for classification
-            result = llm.generate_simple(classification_prompt, temperature=0.05, max_tokens=20)
+            # Use fast, zero-temperature generation for deterministic classification
+            result = llm.generate_simple(classification_prompt, temperature=0, max_tokens=20)
 
             classification = result.strip().upper()
             logger.debug(f"LLM classified query as: {classification}")

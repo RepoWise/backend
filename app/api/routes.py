@@ -2,14 +2,12 @@
 API Routes for RepoWise
 Handles project management, document extraction, and RAG-powered queries
 """
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl, validator
 from loguru import logger
 import re
-import json
-from pathlib import Path
 
 from app.core.config import FLAGSHIP_PROJECTS, settings
 from app.crawler.project_doc_extractor import ProjectDocExtractor
@@ -19,6 +17,7 @@ from app.models.intent_router import IntentRouter
 from app.data.csv_engine import CSVDataEngine
 from app.models.question_suggester import QuestionSuggester
 from app.data.repo_scraper_client import RepoScraperClient
+from app.models.conversation_manager import ConversationManager
 
 router = APIRouter()
 
@@ -28,68 +27,46 @@ rag_engine = RAGEngine()
 llm_client = LLMClient()
 # Use keyword-based intent classification (single-keyword approach, 67.8% accuracy)
 intent_router = IntentRouter(llm_client=llm_client, use_llm_classification=False)
-csv_engine = CSVDataEngine(csv_data_dir="data/csv_data", llm_client=llm_client)
+csv_engine = CSVDataEngine(llm_client=llm_client)
 question_suggester = QuestionSuggester()
 
 # Initialize API-based data fetching components (NO CACHING)
 repo_scraper = RepoScraperClient()
 
 # Note: Projects are now stored in ChromaDB only (no JSON file needed)
-# CSV paths still stored in JSON for auto-reload functionality
-CSV_PATHS_FILE = Path("data/csv_paths.json")
+# All commits/issues data comes from external API (https://ossprey.ngrok.app)
 
 
-def _load_csv_paths() -> dict:
-    """Load CSV paths configuration from disk"""
-    if CSV_PATHS_FILE.exists():
-        try:
-            with open(CSV_PATHS_FILE, "r") as f:
-                paths = json.load(f)
-                logger.info(f"📂 Loaded CSV paths for {len(paths)} projects from disk")
-                return paths
-        except Exception as e:
-            logger.error(f"Error loading CSV paths: {e}")
-            return {}
-    return {}
+# Admin endpoint to reset all data
+@router.delete("/admin/reset")
+async def reset_all_data():
+    """
+    Reset all data - clears ChromaDB collections and in-memory data cache.
+    WARNING: This will delete ALL indexed projects and their data.
+    Use with caution!
+    """
+    logger.warning("⚠️ Admin reset requested - clearing all data")
 
-
-def _save_csv_paths(csv_paths: dict):
-    """Save CSV paths configuration to disk"""
     try:
-        CSV_PATHS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CSV_PATHS_FILE, "w") as f:
-            json.dump(csv_paths, f, indent=2)
-        logger.debug(f"💾 Saved CSV paths for {len(csv_paths)} projects to disk")
+        # Reset ChromaDB (deletes all collections and recreates empty one)
+        rag_engine.vector_store.reset()
+        logger.info("✅ ChromaDB collections cleared")
+
+        # Clear in-memory data cache (commits/issues)
+        csv_engine.data_cache.clear()
+        logger.info("✅ In-memory data cache cleared")
+
+        return {
+            "status": "success",
+            "message": "All data has been reset. ChromaDB collections and data cache cleared.",
+            "cleared": {
+                "chromadb": True,
+                "data_cache": True
+            }
+        }
     except Exception as e:
-        logger.error(f"Error saving CSV paths: {e}")
-
-
-def _auto_load_csv_data():
-    """Auto-load CSV data from saved paths on server startup"""
-    csv_paths = _load_csv_paths()
-    if not csv_paths:
-        logger.info("No CSV paths to auto-load")
-        return
-
-    logger.info(f"🔄 Auto-loading CSV data for {len(csv_paths)} projects...")
-    for project_id, paths in csv_paths.items():
-        try:
-            result = csv_engine.load_project_data(
-                project_id,
-                commits_path=paths.get("commits_csv_path"),
-                issues_path=paths.get("issues_csv_path")
-            )
-            logger.info(f"✅ Auto-loaded CSV for {project_id}: commits={result['commits_loaded']}, issues={result['issues_loaded']}")
-        except Exception as e:
-            logger.error(f"Error auto-loading CSV for {project_id}: {e}")
-
-
-# Note: Projects are now loaded from ChromaDB dynamically (no disk loading needed)
-
-# Auto-load CSV data on startup
-# DISABLED: All commits/issues data now comes from external API (https://ossprey.ngrok.app)
-# No need to auto-load manual CSV files from /data/scraped/
-# _auto_load_csv_data()
+        logger.error(f"❌ Error during reset: {e}")
+        raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
 
 
 # Pydantic Models
@@ -105,7 +82,6 @@ class Project(BaseModel):
 
 class CrawlRequest(BaseModel):
     project_id: str
-    use_cache: bool = True
 
 
 class ConversationMessage(BaseModel):
@@ -113,14 +89,22 @@ class ConversationMessage(BaseModel):
     content: str
 
 
+class ConversationState(BaseModel):
+    """Running summary state for efficient conversation context"""
+    running_summary: str = ""
+    last_exchange: Optional[Dict[str, str]] = None
+    turn_count: int = 0
+
+
 class QueryRequest(BaseModel):
     project_id: Optional[str] = None  # Optional for conversational queries
     query: str
     max_results: int = 5
-    temperature: float = 0.3
+    temperature: float = 0
     stream: bool = False
-    conversation_history: Optional[List[ConversationMessage]] = None
-    use_llm_classification: bool = False  # Use keyword-based intent classification (single-keyword approach, 67.8% accuracy)
+    conversation_history: Optional[List[ConversationMessage]] = None  # Legacy: full history
+    conversation_state: Optional[ConversationState] = None  # New: running summary
+    use_llm_classification: bool = False  # Use keyword-based intent classification
 
 
 class SearchRequest(BaseModel):
@@ -151,11 +135,6 @@ class AddRepositoryRequest(BaseModel):
         raise ValueError('Invalid GitHub URL format. Expected: https://github.com/owner/repo or owner/repo')
 
 
-class LoadCSVRequest(BaseModel):
-    commits_csv_path: Optional[str] = None
-    issues_csv_path: Optional[str] = None
-
-
 class QueryResponse(BaseModel):
     project_id: str
     query: str
@@ -163,6 +142,7 @@ class QueryResponse(BaseModel):
     sources: List[dict]
     metadata: dict
     suggested_questions: Optional[List[str]] = []
+    conversation_state: Optional[ConversationState] = None  # Updated running summary
 
 
 # Helper functions
@@ -312,15 +292,46 @@ async def add_repository(request: AddRepositoryRequest):
             existing = next((p for p in existing_projects if p["id"] == project_id), None)
 
             if existing:
+                # Check if commits/issues data needs to be fetched
+                needs_data_fetch = not csv_engine.has_project_data(project_id)
+
+                if needs_data_fetch:
+                    logger.info(f"Project {project_id} missing commits/issues data, fetching in background")
+
+                    import asyncio
+                    from concurrent.futures import ThreadPoolExecutor
+
+                    # Start background task to fetch commits/issues
+                    async def background_data_fetch():
+                        try:
+                            loop = asyncio.get_event_loop()
+                            with ThreadPoolExecutor(max_workers=1) as executor:
+                                data_result = await loop.run_in_executor(
+                                    executor,
+                                    _fetch_repo_data,
+                                    owner,
+                                    repo,
+                                    project_id
+                                )
+                            logger.info(f"✅ Background data fetch complete for {project_id}: {data_result}")
+                        except Exception as e:
+                            logger.error(f"❌ Background data fetch failed for {project_id}: {e}")
+
+                    asyncio.create_task(background_data_fetch())
+
                 return {
                     "status": "already_exists",
                     "message": f"Project {owner}/{repo} is already indexed in the system",
                     "project": existing,
+                    "data_loading": {
+                        "status": "loading_in_background" if needs_data_fetch else "available",
+                        "message": "Commits/issues data is being fetched" if needs_data_fetch else "All data available"
+                    }
                 }
 
-        # Extract project documents (NO CACHING - always fresh)
-        logger.info(f"Extracting project documents for {owner}/{repo} (no cache)")
-        doc_data = doc_extractor.extract_project_documents(owner, repo, use_cache=False)
+        # Extract project documents (always fresh)
+        logger.info(f"Extracting project documents for {owner}/{repo}")
+        doc_data = doc_extractor.extract_project_documents(owner, repo)
 
         if "error" in doc_data:
             raise HTTPException(
@@ -369,35 +380,51 @@ async def add_repository(request: AddRepositoryRequest):
 
         logger.info(f"✅ Governance indexing complete for {project_id}")
 
-        # Start API data fetching in background (fire-and-forget)
-        # This allows users to start asking governance questions immediately
-        # while commits/issues data loads in the background
-        async def background_data_fetch():
-            try:
-                logger.info(f"Starting background API data fetch for {project_id}")
-                with ThreadPoolExecutor(max_workers=1) as executor:
-                    data_result = await loop.run_in_executor(
-                        executor,
-                        _fetch_repo_data,
-                        owner,
-                        repo,
-                        project_id
-                    )
-                logger.info(f"✅ Background API data fetch complete for {project_id}: {data_result}")
-            except Exception as e:
-                logger.error(f"❌ Background API data fetch failed for {project_id}: {e}")
+        # Check if commits/issues data already exists in data_cache
+        # (edge case: project not in ChromaDB but data_cache has data from previous partial run)
+        needs_data_fetch = not csv_engine.has_project_data(project_id)
 
-        # Create background task (non-blocking)
-        asyncio.create_task(background_data_fetch())
+        if needs_data_fetch:
+            # Start API data fetching in background (fire-and-forget)
+            # This allows users to start asking governance questions immediately
+            # while commits/issues data loads in the background
+            async def background_data_fetch():
+                try:
+                    logger.info(f"Starting background API data fetch for {project_id}")
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        data_result = await loop.run_in_executor(
+                            executor,
+                            _fetch_repo_data,
+                            owner,
+                            repo,
+                            project_id
+                        )
+                    logger.info(f"✅ Background API data fetch complete for {project_id}: {data_result}")
+                except Exception as e:
+                    logger.error(f"❌ Background API data fetch failed for {project_id}: {e}")
 
-        # Prepare response indicating data is loading in background
-        data_result = {
-            "status": "loading_in_background",
-            "message": "Commits and issues data is being loaded in the background. Governance questions can be asked immediately.",
-            "commits_loaded": False,
-            "issues_loaded": False,
-            "data_source": "pending"
-        }
+            # Create background task (non-blocking)
+            asyncio.create_task(background_data_fetch())
+
+            # Prepare response indicating data is loading in background
+            data_result = {
+                "status": "loading_in_background",
+                "message": "Commits and issues data is being loaded in the background. Governance questions can be asked immediately.",
+                "commits_loaded": False,
+                "issues_loaded": False,
+                "data_source": "pending"
+            }
+        else:
+            # Data already exists in cache
+            logger.info(f"✅ Commits/issues data already in cache for {project_id}")
+            available_data = csv_engine.get_available_data(project_id)
+            data_result = {
+                "status": "available",
+                "message": "Commits and issues data already available in cache.",
+                "commits_loaded": available_data.get("commits", False),
+                "issues_loaded": available_data.get("issues", False),
+                "data_source": "cache"
+            }
 
         logger.info(f"✅ Returning success for {project_id} (API data loading in background)")
 
@@ -513,63 +540,8 @@ async def get_project(project_id: str):
         }
 
 
-@router.post("/projects/{project_id}/load-csv")
-async def load_csv_data(project_id: str, request: LoadCSVRequest):
-    """
-    Load CSV data (commits and/or issues) for a project
-
-    This enables querying commits and issues data alongside project documents.
-    """
-    logger.info(f"Load CSV request for project: {project_id}")
-
-    # Verify project exists (check flagship projects first, then ChromaDB)
-    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project:
-        # Try to get from ChromaDB
-        all_projects = rag_engine.vector_store.list_all_projects()
-        project = next((p for p in all_projects if p["id"] == project_id), None)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    if not request.commits_csv_path and not request.issues_csv_path:
-        raise HTTPException(status_code=400, detail="At least one CSV path must be provided")
-
-    try:
-        # Load CSV data
-        result = csv_engine.load_project_data(
-            project_id,
-            commits_path=request.commits_csv_path,
-            issues_path=request.issues_csv_path
-        )
-
-        # Save CSV paths to disk for auto-reload on server restart
-        if result.get("commits_loaded") or result.get("issues_loaded"):
-            csv_paths = _load_csv_paths()
-            csv_paths[project_id] = {
-                "commits_csv_path": request.commits_csv_path,
-                "issues_csv_path": request.issues_csv_path
-            }
-            _save_csv_paths(csv_paths)
-            logger.info(f"💾 Saved CSV paths for {project_id} to disk for auto-reload")
-
-        # Get statistics
-        available_data = csv_engine.get_available_data(project_id)
-
-        return {
-            "status": "success",
-            "project_id": project_id,
-            "loaded": result,
-            "available_data": available_data,
-            "message": f"Successfully loaded CSV data for {project['name']}"
-        }
-
-    except Exception as e:
-        logger.error(f"Error loading CSV data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/crawl/{project_id}")
-async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, use_cache: bool = True):
+async def crawl_governance(project_id: str, background_tasks: BackgroundTasks):
     """Crawl and index project documents for a project"""
     logger.info(f"Crawl request for project: {project_id}")
 
@@ -586,7 +558,7 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, u
         # Extract project documents
         logger.info(f"Extracting project documents for {project['owner']}/{project['repo']}")
         doc_data = doc_extractor.extract_project_documents(
-            project["owner"], project["repo"], use_cache=use_cache
+            project["owner"], project["repo"]
         )
 
         if "error" in doc_data:
@@ -616,54 +588,6 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks, u
         raise
     except Exception as e:
         logger.error(f"Error in crawl_governance: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/governance/{project_id}")
-async def get_governance_data(project_id: str):
-    """Get cached governance data for a project"""
-    # Find project (check flagship projects first, then ChromaDB)
-    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project:
-        # Try to get from ChromaDB
-        all_projects = rag_engine.vector_store.list_all_projects()
-        project = next((p for p in all_projects if p["id"] == project_id), None)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    try:
-        # Try to load from cache
-        cached = doc_extractor._load_from_cache(project["owner"], project["repo"])
-
-        if not cached:
-            raise HTTPException(
-                status_code=404,
-                detail="Governance data not found. Please crawl the project first.",
-            )
-
-        # Return summary without full content
-        files_summary = {
-            file_type: {
-                "path": file_data.get("path"),
-                "content_length": file_data.get("content_length", 0),
-                "fetched_at": file_data.get("fetched_at"),
-            }
-            for file_type, file_data in cached.get("files", {}).items()
-        }
-
-        return {
-            "project_id": project_id,
-            "owner": cached.get("owner"),
-            "repo": cached.get("repo"),
-            "extracted_at": cached.get("extracted_at"),
-            "files": files_summary,
-            "metadata": cached.get("metadata"),
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting governance data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -779,9 +703,25 @@ async def query_project_docs(request: QueryRequest):
                     suggested_questions=suggested_questions,
                 )
 
-            # Build conversation history
+            # Build conversation context (support both legacy and running summary)
             conversation_history = []
-            if request.conversation_history:
+
+            # Always create ConversationManager for tracking
+            conv_manager = ConversationManager(llm_client)
+
+            if request.conversation_state and request.conversation_state.turn_count > 0:
+                # Load existing conversation state
+                conv_manager.from_dict({
+                    "running_summary": request.conversation_state.running_summary,
+                    "last_exchange": request.conversation_state.last_exchange,
+                    "turn_count": request.conversation_state.turn_count
+                })
+                # Get conversation context from manager
+                conv_context = conv_manager.get_context_for_prompt()
+                if conv_context:
+                    context = f"{conv_context}\n\n{context}"
+            elif request.conversation_history:
+                # Legacy approach: full history
                 for msg in request.conversation_history:
                     conversation_history.append({"role": msg.role, "content": msg.content})
 
@@ -790,8 +730,19 @@ async def query_project_docs(request: QueryRequest):
                 context=context,
                 project_name=project["name"],
                 temperature=request.temperature,
-                conversation_history=conversation_history,
+                conversation_history=[],  # Not used anymore, context includes conversation summary
                 query_type=query_type,
+            )
+
+            # Update conversation state
+            conv_manager.update_after_response(
+                request.query,
+                llm_response.get("response", "")
+            )
+            updated_state = ConversationState(
+                running_summary=conv_manager.running_summary,
+                last_exchange=conv_manager.last_exchange,
+                turn_count=conv_manager.turn_count
             )
 
             # Generate contextual follow-up questions
@@ -816,11 +767,23 @@ async def query_project_docs(request: QueryRequest):
                     "generation_time_ms": llm_response.get("total_duration_ms"),
                 },
                 suggested_questions=suggested_questions,
+                conversation_state=updated_state,
             )
 
         elif intent in ["COMMITS", "ISSUES"]:
             # Use CSV Query Engine
             data_type = "commits" if intent == "COMMITS" else "issues"
+
+            # Always create ConversationManager for tracking
+            conv_manager = ConversationManager(llm_client)
+
+            if request.conversation_state and request.conversation_state.turn_count > 0:
+                # Load existing conversation state
+                conv_manager.from_dict({
+                    "running_summary": request.conversation_state.running_summary,
+                    "last_exchange": request.conversation_state.last_exchange,
+                    "turn_count": request.conversation_state.turn_count
+                })
 
             # Check if CSV data is available
             available_data = csv_engine.get_available_data(request.project_id)
@@ -895,6 +858,14 @@ async def query_project_docs(request: QueryRequest):
                         project_context={"project_name": project["name"], "project_id": request.project_id}
                     )
 
+                    # Update conversation state for aggregation query
+                    conv_manager.update_after_response(request.query, llm_response_text)
+                    updated_state = ConversationState(
+                        running_summary=conv_manager.running_summary,
+                        last_exchange=conv_manager.last_exchange,
+                        turn_count=conv_manager.turn_count
+                    )
+
                     return QueryResponse(
                         project_id=request.project_id,
                         query=request.query,
@@ -907,6 +878,7 @@ async def query_project_docs(request: QueryRequest):
                             "stats": first_record
                         },
                         suggested_questions=suggested_questions,
+                        conversation_state=updated_state,
                     )
 
                 elif data_type == "commits" and "total_commits" in first_record:
@@ -932,6 +904,14 @@ async def query_project_docs(request: QueryRequest):
                         project_context={"project_name": project["name"], "project_id": request.project_id}
                     )
 
+                    # Update conversation state for aggregation query
+                    conv_manager.update_after_response(request.query, llm_response_text)
+                    updated_state = ConversationState(
+                        running_summary=conv_manager.running_summary,
+                        last_exchange=conv_manager.last_exchange,
+                        turn_count=conv_manager.turn_count
+                    )
+
                     return QueryResponse(
                         project_id=request.project_id,
                         query=request.query,
@@ -944,15 +924,33 @@ async def query_project_docs(request: QueryRequest):
                             "stats": first_record
                         },
                         suggested_questions=suggested_questions,
+                        conversation_state=updated_state,
                     )
 
             # For non-aggregation queries, use LLM to generate response
+            # Add conversation context
+            llm_context = context
+            conv_context = conv_manager.get_context_for_prompt()
+            if conv_context:
+                llm_context = f"{conv_context}\n\n{context}"
+
             llm_response = await llm_client.generate_response(
                 query=request.query,
-                context=context,  # Just pass the DataFrame string
+                context=llm_context,  # Context with conversation history
                 project_name=project["name"],
                 temperature=0.0,  # Zero temperature for maximum factual precision, prevent hallucinations
                 query_type=data_type,  # "commits" or "issues" - triggers CSV-specific prompting
+            )
+
+            # Update conversation state
+            conv_manager.update_after_response(
+                request.query,
+                llm_response.get("response", "")
+            )
+            updated_state = ConversationState(
+                running_summary=conv_manager.running_summary,
+                last_exchange=conv_manager.last_exchange,
+                turn_count=conv_manager.turn_count
             )
 
             # Format sources from CSV records
@@ -995,6 +993,7 @@ async def query_project_docs(request: QueryRequest):
                     "generation_time_ms": llm_response.get("total_duration_ms"),
                 },
                 suggested_questions=suggested_questions,
+                conversation_state=updated_state,
             )
 
     except HTTPException:
