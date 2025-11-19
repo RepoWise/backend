@@ -1,6 +1,7 @@
 """
 Core configuration module for RepWise
 """
+import json
 from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
         env="CORS_ALLOW_METHODS",
     )
     cors_allow_headers: List[str] = Field(
-        default=["Authorization", "Content-Type", "Accept", "Origin"],
+        default=["Authorization", "Content-Type", "Accept", "Origin", "ngrok-skip-browser-warning"],
         env="CORS_ALLOW_HEADERS",
     )
 
@@ -115,9 +116,19 @@ class Settings(BaseSettings):
         "cors_origins", "cors_allow_methods", "cors_allow_headers", mode="before"
     )
     @classmethod
-    def split_comma_separated_values(cls, value):
-        """Ensure comma separated environment values become lists."""
+    def parse_list_values(cls, value):
+        """Parse list values from environment - supports both JSON arrays and comma-separated strings."""
         if isinstance(value, str):
+            value = value.strip()
+            # Try JSON array format first (e.g., '["http://localhost:3000", "http://localhost:5173"]')
+            if value.startswith("["):
+                try:
+                    parsed = json.loads(value)
+                    if isinstance(parsed, list):
+                        return [item.strip() if isinstance(item, str) else item for item in parsed]
+                except json.JSONDecodeError:
+                    pass
+            # Fall back to comma-separated format (e.g., 'http://localhost:3000,http://localhost:5173')
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
