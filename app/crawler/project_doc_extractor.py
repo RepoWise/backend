@@ -1,15 +1,12 @@
 """
 Advanced Project Document Extractor
 Extracts project documentation (README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, etc.)
-Implements multi-method extraction with intelligent caching and rate limiting
+Implements multi-method extraction with rate limiting
 """
 import re
 import time
-import json
-import hashlib
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
 from loguru import logger
 
 from github import Github, GithubException, RateLimitExceededException
@@ -23,7 +20,6 @@ class ProjectDocExtractor:
     """
     Production-grade project document extractor with:
     - Multi-method extraction (Community Profile API, Tree API, Contents API)
-    - Intelligent caching with SHA-based change detection
     - Rate limit management with exponential backoff
     - Pattern-based file detection for all project document types
     - Extracts: README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, GOVERNANCE, MAINTAINERS, etc.
@@ -33,10 +29,8 @@ class ProjectDocExtractor:
         """Initialize extractor with GitHub authentication"""
         token = github_token or settings.github_token
         self.github = Github(token, per_page=100)
-        self.cache_dir = Path(settings.cache_dir)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"ProjectDocExtractor initialized with cache dir: {self.cache_dir}")
+        logger.info("ProjectDocExtractor initialized")
 
     def _check_rate_limit(self):
         """Check and handle GitHub API rate limits"""
@@ -69,52 +63,6 @@ class ProjectDocExtractor:
                     time.sleep(sleep_duration)
         except Exception as e:
             logger.warning(f"Error checking rate limit: {e}. Continuing without rate limit check.")
-
-    def _get_cache_path(self, owner: str, repo: str) -> Path:
-        """Generate cache file path for repository"""
-        cache_key = hashlib.md5(f"{owner}/{repo}".encode()).hexdigest()
-        return self.cache_dir / f"{cache_key}.json"
-
-    def _load_from_cache(
-        self, owner: str, repo: str
-    ) -> Optional[Dict]:
-        """Load project document data from cache if valid"""
-        cache_path = self._get_cache_path(owner, repo)
-
-        if not cache_path.exists():
-            return None
-
-        try:
-            with open(cache_path, "r") as f:
-                cached_data = json.load(f)
-
-            # Check cache age
-            cached_time = datetime.fromisoformat(cached_data.get("cached_at", ""))
-            cache_age = datetime.now() - cached_time
-
-            if cache_age.total_seconds() > settings.cache_ttl_seconds:
-                logger.info(f"Cache expired for {owner}/{repo}")
-                return None
-
-            logger.info(f"Loaded from cache: {owner}/{repo}")
-            return cached_data
-
-        except Exception as e:
-            logger.error(f"Error loading cache: {e}")
-            return None
-
-    def _save_to_cache(self, owner: str, repo: str, data: Dict):
-        """Save project document data to cache"""
-        cache_path = self._get_cache_path(owner, repo)
-
-        try:
-            data["cached_at"] = datetime.now().isoformat()
-            with open(cache_path, "w") as f:
-                json.dump(data, f, indent=2)
-
-            logger.info(f"Saved to cache: {owner}/{repo}")
-        except Exception as e:
-            logger.error(f"Error saving cache: {e}")
 
     def _match_project_doc_file(self, file_path: str) -> Optional[Tuple[str, str]]:
         """
@@ -273,9 +221,7 @@ class ProjectDocExtractor:
             logger.error(f"Unexpected error fetching {file_path}: {e}")
             return None
 
-    def extract_project_documents(
-        self, owner: str, repo_name: str, use_cache: bool = True
-    ) -> Dict:
+    def extract_project_documents(self, owner: str, repo_name: str) -> Dict:
         """
         Main extraction method combining multiple strategies
 
@@ -304,15 +250,6 @@ class ProjectDocExtractor:
         start_time = time.time()
 
         logger.info(f"Starting extraction for {owner}/{repo_name}")
-
-        # Check cache first
-        if use_cache:
-            cached = self._load_from_cache(owner, repo_name)
-            if cached:
-                files_count = len(cached.get("files", {}))
-                extracted_at = cached.get("extracted_at", "unknown")
-                logger.info(f"✅ Using cached data for {owner}/{repo_name}: {files_count} files (extracted at {extracted_at})")
-                return cached
 
         try:
             # Get repository
@@ -369,9 +306,6 @@ class ProjectDocExtractor:
                 },
             }
 
-            # Save to cache
-            self._save_to_cache(owner, repo_name, result)
-
             logger.success(
                 f"Extracted {len(project_docs_data)} files for {owner}/{repo_name} in {extraction_time:.2f}s"
             )
@@ -382,7 +316,7 @@ class ProjectDocExtractor:
             logger.error("Rate limit exceeded - waiting for reset")
             self._check_rate_limit()
             # Retry once
-            return self.extract_project_documents(owner, repo_name, use_cache=False)
+            return self.extract_project_documents(owner, repo_name)
 
         except GithubException as e:
             logger.error(f"GitHub API error for {owner}/{repo_name}: {e}")
@@ -409,7 +343,6 @@ class ProjectDocExtractor:
     def extract_multiple_repos(
         self,
         repos: List[Tuple[str, str]],
-        use_cache: bool = True,
         parallel: bool = False,
     ) -> List[Dict]:
         """
@@ -417,7 +350,6 @@ class ProjectDocExtractor:
 
         Args:
             repos: List of (owner, repo_name) tuples
-            use_cache: Whether to use cached data
             parallel: Whether to use parallel processing (not implemented yet for safety)
 
         Returns:
@@ -427,7 +359,7 @@ class ProjectDocExtractor:
 
         for owner, repo_name in repos:
             try:
-                result = self.extract_project_documents(owner, repo_name, use_cache)
+                result = self.extract_project_documents(owner, repo_name)
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to extract {owner}/{repo_name}: {e}")
