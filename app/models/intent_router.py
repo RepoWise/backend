@@ -215,7 +215,7 @@ Project Context: {"User has selected a project" if has_project_context else "No 
 Respond with ONLY the category name: PROJECT_DOC_BASED, COMMITS, ISSUES, GENERAL, or OUT_OF_SCOPE"""
 
         try:
-            llm_response = self.llm_client.generate_simple(prompt, max_tokens=20, temperature=0.1)
+            llm_response = self.llm_client.generate_simple(prompt, max_tokens=20, temperature=0)
             llm_intent = llm_response.strip().upper()
 
             # Validate LLM response
@@ -385,7 +385,7 @@ Query: "{query}"
 
 Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
 
-                llm_response = self.llm_client.generate_simple(prompt, max_tokens=10, temperature=0.1)
+                llm_response = self.llm_client.generate_simple(prompt, max_tokens=10, temperature=0)
                 llm_intent = llm_response.strip().upper()
 
                 # Validate LLM response
