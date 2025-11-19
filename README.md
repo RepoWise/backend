@@ -15,7 +15,7 @@ AI-powered backend service for analyzing open-source repository documentation, c
 - **Framework**: FastAPI
 - **Vector Database**: ChromaDB
 - **Embeddings**: HuggingFace sentence-transformers with MRL
-- **LLM**: Local Ollama (llama3.2) or cloud providers
+- **LLM**: Local Ollama (mistral:latest) or cloud providers
 - **Data Processing**: pandas, BeautifulSoup4
 - **API Client**: GitHub API via requests
 
@@ -52,14 +52,14 @@ AI-powered backend service for analyzing open-source repository documentation, c
    Edit `.env` and configure:
    - `GITHUB_TOKEN`: Your GitHub personal access token
    - `OLLAMA_HOST`: Ollama server URL (default: http://localhost:11434)
-   - `OLLAMA_MODEL`: Model name (default: llama3.2:1b)
+   - `OLLAMA_MODEL`: Model name (default: mistral:latest)
    - Other configuration as needed
 
 5. **Install and start Ollama** (if using local LLM)
    ```bash
    # macOS/Linux
    curl -fsSL https://ollama.com/install.sh | sh
-   ollama pull llama3.2:1b
+   ollama pull mistral:latest
    ollama serve
    ```
 
@@ -93,7 +93,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
 
 - `GET /api/projects` - List all indexed projects
-- `DELETE /api/projects/{project_id}` - Remove a project
+- `GET /api/projects/{project_id}` - Get project details
 
 ### Query
 
@@ -101,13 +101,17 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```json
   {
     "project_id": "owner-repo",
-    "query": "Who maintains this project?"
+    "query": "Who maintains this project?",
+    "conversation_state": null
   }
   ```
 
-### Health Check
+  The API supports running summary for multi-turn conversations. The `conversation_state` is returned in each response and should be passed back in follow-up queries.
 
-- `GET /health` - Check API status
+### Health & Stats
+
+- `GET /api/health` - Check API status
+- `GET /api/stats` - Get system statistics
 
 ## Project Structure
 
