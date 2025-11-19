@@ -4,12 +4,11 @@ Handles project management, document extraction, and RAG-powered queries
 """
 from typing import List, Optional, Dict
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl, validator
 from loguru import logger
 import re
 
-from app.core.config import FLAGSHIP_PROJECTS, settings
+from app.core.config import settings
 from app.crawler.project_doc_extractor import ProjectDocExtractor
 from app.rag.rag_engine import RAGEngine
 from app.models.llm_client import LLMClient
@@ -464,11 +463,9 @@ async def refresh_project_data(project_id: str):
     logger.info(f"Refresh data request for project: {project_id}")
 
     # Find project (check flagship projects first, then ChromaDB)
-    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project:
-        # Try to get from ChromaDB
-        all_projects = rag_engine.vector_store.list_all_projects()
-        project = next((p for p in all_projects if p["id"] == project_id), None)
+    # Get project from ChromaDB (single source of truth)
+    all_projects = rag_engine.vector_store.list_all_projects()
+    project = next((p for p in all_projects if p["id"] == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -509,13 +506,9 @@ async def refresh_project_data(project_id: str):
 @router.get("/projects/{project_id}")
 async def get_project(project_id: str):
     """Get details for a specific project"""
-    # Check flagship projects first, then ChromaDB
-    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-
-    if not project:
-        # Try to get from ChromaDB
-        all_projects = rag_engine.vector_store.list_all_projects()
-        project = next((p for p in all_projects if p["id"] == project_id), None)
+    # Get project from ChromaDB (single source of truth)
+    all_projects = rag_engine.vector_store.list_all_projects()
+    project = next((p for p in all_projects if p["id"] == project_id), None)
 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -546,11 +539,9 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks):
     logger.info(f"Crawl request for project: {project_id}")
 
     # Find project (check flagship projects first, then ChromaDB)
-    project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == project_id), None)
-    if not project:
-        # Try to get from ChromaDB
-        all_projects = rag_engine.vector_store.list_all_projects()
-        project = next((p for p in all_projects if p["id"] == project_id), None)
+    # Get project from ChromaDB (single source of truth)
+    all_projects = rag_engine.vector_store.list_all_projects()
+    project = next((p for p in all_projects if p["id"] == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -676,11 +667,9 @@ async def query_project_docs(request: QueryRequest):
                 suggested_questions=suggested_questions,
             )
 
-        project = next((p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None)
-        if not project:
-            # Try to get from ChromaDB
-            all_projects = rag_engine.vector_store.list_all_projects()
-            project = next((p for p in all_projects if p["id"] == request.project_id), None)
+        # Get project from ChromaDB (single source of truth)
+        all_projects = rag_engine.vector_store.list_all_projects()
+        project = next((p for p in all_projects if p["id"] == request.project_id), None)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -1003,57 +992,6 @@ async def query_project_docs(request: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/query/stream")
-async def query_project_docs_stream(request: QueryRequest):
-    """Stream LLM response for governance query"""
-    logger.info(
-        f"Stream query request for project {request.project_id}: '{request.query}'"
-    )
-
-    # Verify project exists (check flagship projects first, then ChromaDB)
-    project = next(
-        (p for p in FLAGSHIP_PROJECTS if p["id"] == request.project_id), None
-    )
-    if not project:
-        # Try to get from ChromaDB
-        all_projects = rag_engine.vector_store.list_all_projects()
-        project = next((p for p in all_projects if p["id"] == request.project_id), None)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    try:
-        # Get context from RAG with intelligent search
-        context, sources, query_type = rag_engine.get_context_for_query(
-            request.query,
-            request.project_id,
-            max_chunks=request.max_results,
-        )
-
-        if not context:
-            async def error_stream():
-                yield "No relevant project documents found. Please make sure the project has been crawled first."
-
-            return StreamingResponse(error_stream(), media_type="text/plain")
-
-        # Stream LLM response
-        return StreamingResponse(
-            llm_client.generate_response_stream(
-                query=request.query,
-                context=context,
-                project_name=project["name"],
-                temperature=request.temperature,
-                query_type=query_type,
-            ),
-            media_type="text/plain",
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in query_project_docs_stream: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/search")
 async def search_documents(request: SearchRequest):
     """Semantic search in project documents"""
@@ -1110,7 +1048,6 @@ async def get_stats():
         return {
             "collection": collection_stats,
             "projects": {
-                "total_available": len(FLAGSHIP_PROJECTS),
                 "indexed": collection_stats.get("projects_indexed", 0),
             },
         }
