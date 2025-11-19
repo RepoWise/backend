@@ -126,13 +126,6 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-# Flagship OSS Projects Configuration
-# FLAGSHIP_PROJECTS removed - system now relies entirely on dynamic_projects
-# Users add projects via /api/projects/add endpoint
-# Projects are stored in data/dynamic_projects.json
-FLAGSHIP_PROJECTS = []
-
-
 # Project documentation file patterns for detection
 PROJECT_DOC_FILES = {
     "governance": [
