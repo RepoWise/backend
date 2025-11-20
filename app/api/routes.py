@@ -2,6 +2,10 @@
 API Routes for RepoWise
 Handles project management, document extraction, and RAG-powered queries
 """
+import asyncio
+import json
+from datetime import datetime
+from pathlib import Path
 from typing import List, Optional, Dict
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, HttpUrl, validator
@@ -19,6 +23,11 @@ from app.data.repo_scraper_client import RepoScraperClient
 from app.models.conversation_manager import ConversationManager
 
 router = APIRouter()
+
+# View tracking storage
+VIEW_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "view_data.json"
+VIEW_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+view_data_lock = asyncio.Lock()
 
 # Initialize components
 doc_extractor = ProjectDocExtractor()
@@ -171,6 +180,24 @@ def parse_github_url(url: str) -> tuple:
     raise ValueError(f'Invalid GitHub URL: {url}')
 
 
+async def _load_view_data() -> dict:
+    """Load view tracking data from disk, returning a default structure if missing."""
+    if not VIEW_DATA_PATH.exists():
+        return {"timestamps": []}
+
+    try:
+        content = VIEW_DATA_PATH.read_text(encoding="utf-8")
+        return json.loads(content)
+    except json.JSONDecodeError:
+        logger.warning("View data file is corrupted; resetting to empty state")
+        return {"timestamps": []}
+
+
+async def _persist_view_data(data: dict) -> None:
+    """Persist view tracking data to disk. Callers are responsible for locking."""
+    VIEW_DATA_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
     """
     Fetch repository data from API (NO CACHING - always fresh)
@@ -228,6 +255,39 @@ def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
 
 
 # Routes
+@router.post("/record_view")
+async def record_view():
+    """Record a view by storing the current UTC timestamp."""
+    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+    async with view_data_lock:
+        data = await _load_view_data()
+        data.setdefault("timestamps", []).append(timestamp)
+
+        try:
+            await _persist_view_data(data)
+        except Exception as e:
+            logger.error(f"Failed to persist view record: {e}")
+            raise HTTPException(status_code=500, detail="Failed to record view")
+
+    return {"message": "View recorded", "timestamp": timestamp}
+
+
+@router.get("/view_count")
+async def get_view_count():
+    """Return the total number of recorded view timestamps."""
+    async with view_data_lock:
+        try:
+            data = await _load_view_data()
+        except Exception as e:
+            logger.error(f"Failed to load view data: {e}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve view count")
+
+        count = len(data.get("timestamps", []))
+
+    return {"count": count}
+
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
