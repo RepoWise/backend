@@ -2,6 +2,10 @@
 API Routes for RepoWise
 Handles project management, document extraction, and RAG-powered queries
 """
+import asyncio
+import json
+from datetime import datetime
+from pathlib import Path
 from typing import List, Optional, Dict
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, HttpUrl, validator
@@ -19,6 +23,16 @@ from app.data.repo_scraper_client import RepoScraperClient
 from app.models.conversation_manager import ConversationManager
 
 router = APIRouter()
+
+# View tracking storage
+VIEW_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "view_data.json"
+PROCESSED_REPO_DATA_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "processed_repo_data.json"
+)
+VIEW_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+PROCESSED_REPO_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+view_data_lock = asyncio.Lock()
+processed_repo_data_lock = asyncio.Lock()
 
 # Initialize components
 doc_extractor = ProjectDocExtractor()
@@ -171,6 +185,45 @@ def parse_github_url(url: str) -> tuple:
     raise ValueError(f'Invalid GitHub URL: {url}')
 
 
+async def _load_view_data() -> dict:
+    """Load view tracking data from disk, returning a default structure if missing."""
+    if not VIEW_DATA_PATH.exists():
+        return {"timestamps": []}
+
+    try:
+        content = VIEW_DATA_PATH.read_text(encoding="utf-8")
+        return json.loads(content)
+    except json.JSONDecodeError:
+        logger.warning("View data file is corrupted; resetting to empty state")
+        return {"timestamps": []}
+
+
+async def _persist_view_data(data: dict) -> None:
+    """Persist view tracking data to disk. Callers are responsible for locking."""
+    VIEW_DATA_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+async def _load_processed_repo_data() -> dict:
+    """Load processed repository tracking data from disk."""
+    if not PROCESSED_REPO_DATA_PATH.exists():
+        return {"count": 0, "timestamps": []}
+
+    try:
+        content = PROCESSED_REPO_DATA_PATH.read_text(encoding="utf-8")
+        data = json.loads(content)
+        data.setdefault("count", len(data.get("timestamps", [])))
+        data.setdefault("timestamps", [])
+        return data
+    except json.JSONDecodeError:
+        logger.warning("Processed repo data file is corrupted; resetting to empty state")
+        return {"count": 0, "timestamps": []}
+
+
+async def _persist_processed_repo_data(data: dict) -> None:
+    """Persist processed repository tracking data to disk."""
+    PROCESSED_REPO_DATA_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
     """
     Fetch repository data from API (NO CACHING - always fresh)
@@ -242,6 +295,77 @@ def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
 
 
 # Routes
+@router.post("/record_view")
+async def record_view():
+    """Record a view by storing the current UTC timestamp."""
+    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+    async with view_data_lock:
+        data = await _load_view_data()
+        data.setdefault("timestamps", []).append(timestamp)
+
+        try:
+            await _persist_view_data(data)
+        except Exception as e:
+            logger.error(f"Failed to persist view record: {e}")
+            raise HTTPException(status_code=500, detail="Failed to record view")
+
+    return {"message": "View recorded", "timestamp": timestamp}
+
+
+@router.post("/track-processed-repo")
+async def track_processed_repo():
+    """Record a processed repository event with a timestamp and updated count."""
+    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+    async with processed_repo_data_lock:
+        data = await _load_processed_repo_data()
+        data.setdefault("timestamps", []).append(timestamp)
+        data["count"] = len(data["timestamps"])
+
+        try:
+            await _persist_processed_repo_data(data)
+        except Exception as e:
+            logger.error(f"Failed to persist processed repo record: {e}")
+            raise HTTPException(status_code=500, detail="Failed to record processed repository")
+
+    return {
+        "message": "Processed repository recorded",
+        "timestamp": timestamp,
+        "count": data["count"],
+    }
+
+
+@router.get("/processed-repo-count")
+async def get_processed_repo_count():
+    """Return the total number of processed repositories recorded."""
+    async with processed_repo_data_lock:
+        try:
+            data = await _load_processed_repo_data()
+        except Exception as e:
+            logger.error(f"Failed to load processed repo data: {e}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve processed repo count")
+
+        count = data.get("count") or len(data.get("timestamps", []))
+
+    return {"count": count}
+
+
+@router.get("/view_count")
+async def get_view_count():
+    """Return the total number of recorded view timestamps."""
+    async with view_data_lock:
+        try:
+            data = await _load_view_data()
+        except Exception as e:
+            logger.error(f"Failed to load view data: {e}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve view count")
+
+        count = len(data.get("timestamps", []))
+
+    return {"count": count}
+
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""

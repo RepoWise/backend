@@ -4,8 +4,9 @@ Handles user login, signup, OAuth, and profile management
 """
 from datetime import datetime
 import secrets
-from typing import Dict
+from typing import Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -75,6 +76,13 @@ async def signup(user_data: UserSignupRequest, db: Session = Depends(get_db)):
         access_token=access_token,
         user=UserResponse.from_orm(new_user)
     )
+
+
+@router.get("/users/count")
+async def get_user_count(db: Session = Depends(get_db)):
+    """Public endpoint returning total number of users."""
+    count = db.query(func.count(User.id)).scalar() or 0
+    return {"count": count}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -277,6 +285,14 @@ async def get_current_user_profile(current_user: User = Depends(get_current_user
         User profile data
     """
     return UserResponse.from_orm(current_user)
+
+
+@router.get("/users", response_model=List[UserResponse])
+async def list_users(db: Session = Depends(get_db)):
+    """Publicly list all registered users."""
+
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [UserResponse.from_orm(user) for user in users]
 
 
 @router.post("/logout", response_model=MessageResponse)
