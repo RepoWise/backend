@@ -60,6 +60,26 @@ All paths are relative to the API prefix configured in `settings.api_prefix` (de
     curl https://your-domain.example/api/view_count
     ```
 
+## Processed Repository Tracking
+
+- **Record a Processed Repository**
+  - **Method:** `POST`
+  - **Path:** `/api/track-processed-repo`
+  - **Description:** Records a processed-repository event with a timestamp and increments the cumulative count.
+  - **Example (cURL):**
+    ```bash
+    curl -X POST https://your-domain.example/api/track-processed-repo
+    ```
+
+- **Get Processed Repository Count**
+  - **Method:** `GET`
+  - **Path:** `/api/processed-repo-count`
+  - **Description:** Returns the total number of repositories successfully processed.
+  - **Example (cURL):**
+    ```bash
+    curl https://your-domain.example/api/processed-repo-count
+    ```
+
 ## Project Management
 
 - **List Projects**
