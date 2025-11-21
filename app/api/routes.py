@@ -802,9 +802,13 @@ async def query_project_docs(request: QueryRequest):
                     response_msg += "The commits/issues scraper API is processing the data. Please try your question again in a few seconds."
                     error_type = f"{data_type}_fetching"
                 elif fetch_status and fetch_status["status"] == "failed":
-                    # Fetch failed
-                    response_msg = f"Failed to fetch {data_type} data: {fetch_status.get('error', 'Unknown error')}. "
-                    response_msg += "Please try re-adding the repository or contact support."
+                    # Fetch failed - provide user-friendly message
+                    api_error = fetch_status.get("error", "Unknown error")
+                    logger.warning(f"⚠️  Query blocked - {data_type} fetch failed: {api_error}")
+
+                    response_msg = f"Commits and Issues data could not be fetched for this project successfully. "
+                    response_msg += "The data might be too large or the repository might be temporarily unavailable. "
+                    response_msg += "Please try re-adding the repository."
                     error_type = f"{data_type}_fetch_failed"
                 else:
                     # No fetch started or unknown status
@@ -813,18 +817,26 @@ async def query_project_docs(request: QueryRequest):
                     error_type = f"no_{data_type}_data"
 
                 suggested_questions = question_suggester.get_initial_suggestions()
+
+                # Build metadata with error details for debugging
+                metadata = {
+                    "intent": intent,
+                    "data_source": "csv",
+                    "error": error_type,
+                    "fetch_status": fetch_status["status"] if fetch_status else "unknown",
+                    "elapsed_seconds": elapsed_time
+                }
+
+                # Include raw error details in metadata for debugging (only if failed)
+                if fetch_status and fetch_status["status"] == "failed" and fetch_status.get("error"):
+                    metadata["api_error"] = fetch_status.get("error")
+
                 return QueryResponse(
                     project_id=request.project_id,
                     query=request.query,
                     response=response_msg,
                     sources=[],
-                    metadata={
-                        "intent": intent,
-                        "data_source": "csv",
-                        "error": error_type,
-                        "fetch_status": fetch_status["status"] if fetch_status else "unknown",
-                        "elapsed_seconds": elapsed_time
-                    },
+                    metadata=metadata,
                     suggested_questions=suggested_questions,
                 )
 
