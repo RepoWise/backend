@@ -8,6 +8,7 @@ from pathlib import Path
 from loguru import logger
 import json
 import re
+from datetime import datetime
 from app.core.config import settings
 
 
@@ -28,10 +29,55 @@ class CSVDataEngine:
         # In-memory cache: {project_id: {"commits": df, "issues": df}}
         self.data_cache: Dict[str, Dict[str, pd.DataFrame]] = {}
 
+        # Track fetch status: {project_id: {"commits": {"status": "fetching"|"ready"|"failed", "started_at": datetime, "error": str}, "issues": {...}}}
+        self.data_fetching_status: Dict[str, Dict[str, Dict]] = {}
+
         # LLM client for dynamic query generation
         self.llm_client = llm_client
 
         logger.info("CSV Data Engine initialized (in-memory storage)")
+
+    def mark_fetch_started(self, project_id: str, data_type: str):
+        """Mark that data fetching has started for a project"""
+        if project_id not in self.data_fetching_status:
+            self.data_fetching_status[project_id] = {}
+
+        self.data_fetching_status[project_id][data_type] = {
+            "status": "fetching",
+            "started_at": datetime.now(),
+            "error": None
+        }
+        logger.info(f"⏳ Marked {data_type} fetch as STARTED for {project_id}")
+
+    def mark_fetch_complete(self, project_id: str, data_type: str):
+        """Mark that data fetching has completed successfully"""
+        if project_id in self.data_fetching_status and data_type in self.data_fetching_status[project_id]:
+            self.data_fetching_status[project_id][data_type]["status"] = "ready"
+            logger.info(f"✅ Marked {data_type} fetch as COMPLETE for {project_id}")
+
+    def mark_fetch_failed(self, project_id: str, data_type: str, error: str):
+        """Mark that data fetching has failed"""
+        if project_id not in self.data_fetching_status:
+            self.data_fetching_status[project_id] = {}
+
+        self.data_fetching_status[project_id][data_type] = {
+            "status": "failed",
+            "started_at": self.data_fetching_status.get(project_id, {}).get(data_type, {}).get("started_at", datetime.now()),
+            "error": error
+        }
+        logger.error(f"❌ Marked {data_type} fetch as FAILED for {project_id}: {error}")
+
+    def get_fetch_status(self, project_id: str, data_type: str) -> Optional[Dict]:
+        """Get the current fetch status for a data type"""
+        return self.data_fetching_status.get(project_id, {}).get(data_type)
+
+    def get_elapsed_time(self, project_id: str, data_type: str) -> Optional[int]:
+        """Get elapsed time in seconds since fetch started"""
+        status = self.get_fetch_status(project_id, data_type)
+        if status and status.get("started_at"):
+            elapsed = (datetime.now() - status["started_at"]).total_seconds()
+            return int(elapsed)
+        return None
 
     def load_project_data(self, project_id: str, commits_path: Optional[str] = None,
                          issues_path: Optional[str] = None) -> Dict[str, bool]:
