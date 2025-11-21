@@ -4,7 +4,7 @@ Handles user login, signup, OAuth, and profile management
 """
 from datetime import datetime
 import secrets
-from typing import Dict
+from typing import Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -277,6 +277,17 @@ async def get_current_user_profile(current_user: User = Depends(get_current_user
         User profile data
     """
     return UserResponse.from_orm(current_user)
+
+
+@router.get("/users", response_model=List[UserResponse])
+async def list_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all registered users (authentication required)."""
+
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [UserResponse.from_orm(user) for user in users]
 
 
 @router.post("/logout", response_model=MessageResponse)
