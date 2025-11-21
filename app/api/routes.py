@@ -201,6 +201,10 @@ def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
     github_url = f"https://github.com/{owner}/{repo}"
     logger.info(f"🌐 Fetching fresh data from API for {github_url} (no cache)...")
 
+    # Mark fetch as started
+    csv_engine.mark_fetch_started(project_id, "commits")
+    csv_engine.mark_fetch_started(project_id, "issues")
+
     success, api_data = repo_scraper.scrape_repository(github_url)
 
     if success:
@@ -215,14 +219,24 @@ def _fetch_repo_data(owner: str, repo: str, project_id: str) -> dict:
         result["message"] = f"✅ Fetched from API | {result['commits_count']} commits, {result['issues_count']} issues"
         logger.info(result["message"])
 
+        # Mark fetch as complete
+        if result["commits_loaded"]:
+            csv_engine.mark_fetch_complete(project_id, "commits")
+        if result["issues_loaded"]:
+            csv_engine.mark_fetch_complete(project_id, "issues")
+
         return result
     else:
         # API failed
         error_msg = api_data.get("error", "Unknown error")
         logger.error(f"❌ API fetch failed: {error_msg}")
 
+        # Mark fetch as failed
+        csv_engine.mark_fetch_failed(project_id, "commits", error_msg)
+        csv_engine.mark_fetch_failed(project_id, "issues", error_msg)
+
         result["data_source"] = "none"
-        result["message"] = f"❌ API failed: {error_msg}. Please try again later or check the external scraper service."
+        result["message"] = f"❌ API failed: {error_msg}. Please try again later or check the commits/issues scraper service."
         logger.error(result["message"])
         return result
 
@@ -777,16 +791,39 @@ async def query_project_docs(request: QueryRequest):
             # Check if CSV data is available
             available_data = csv_engine.get_available_data(request.project_id)
             if not available_data.get(data_type):
+                # Check fetch status to provide helpful message
+                fetch_status = csv_engine.get_fetch_status(request.project_id, data_type)
+                elapsed_time = csv_engine.get_elapsed_time(request.project_id, data_type)
+
+                # Generate smart error message based on fetch status
+                if fetch_status and fetch_status["status"] == "fetching":
+                    # Data is currently being fetched
+                    response_msg = f"The {data_type} data is still being fetched from the repository (Elapsed: {elapsed_time}s). "
+                    response_msg += "The commits/issues scraper API is processing the data. Please try your question again in a few seconds."
+                    error_type = f"{data_type}_fetching"
+                elif fetch_status and fetch_status["status"] == "failed":
+                    # Fetch failed
+                    response_msg = f"Failed to fetch {data_type} data: {fetch_status.get('error', 'Unknown error')}. "
+                    response_msg += "Please try re-adding the repository or contact support."
+                    error_type = f"{data_type}_fetch_failed"
+                else:
+                    # No fetch started or unknown status
+                    response_msg = f"No {data_type} data available for this project. "
+                    response_msg += "The repository may need to be re-indexed. Try adding the repository again."
+                    error_type = f"no_{data_type}_data"
+
                 suggested_questions = question_suggester.get_initial_suggestions()
                 return QueryResponse(
                     project_id=request.project_id,
                     query=request.query,
-                    response=f"No {data_type} data available for this project. Please load the CSV data first.",
+                    response=response_msg,
                     sources=[],
                     metadata={
                         "intent": intent,
                         "data_source": "csv",
-                        "error": f"no_{data_type}_data"
+                        "error": error_type,
+                        "fetch_status": fetch_status["status"] if fetch_status else "unknown",
+                        "elapsed_seconds": elapsed_time
                     },
                     suggested_questions=suggested_questions,
                 )
