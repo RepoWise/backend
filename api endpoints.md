@@ -207,6 +207,16 @@ All paths are relative to the API prefix configured in `settings.api_prefix` (de
       -H "Authorization: Bearer <JWT>"
     ```
 
+- **List All Users**
+  - **Method:** `GET`
+  - **Path:** `/api/auth/users`
+  - **Description:** Retrieve all registered users (requires `Authorization: Bearer <token>` header).
+  - **Example (cURL):**
+    ```bash
+    curl https://your-domain.example/api/auth/users \
+      -H "Authorization: Bearer <JWT>"
+    ```
+
 - **Logout**
   - **Method:** `POST`
   - **Path:** `/api/auth/logout`
