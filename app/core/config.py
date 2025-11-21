@@ -43,6 +43,8 @@ class Settings(BaseSettings):
             "https://tianna-unretractive-ellen.ngrok-free.dev",
             "http://localhost:3000",
             "http://localhost:5173",
+            "https://repowise.github.io/RepoWise-website/",
+            "https://repowise.github.io",
         ],
         env="CORS_ORIGINS",
     )
