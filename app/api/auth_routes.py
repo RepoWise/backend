@@ -288,11 +288,8 @@ async def get_current_user_profile(current_user: User = Depends(get_current_user
 
 
 @router.get("/users", response_model=List[UserResponse])
-async def list_users(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """List all registered users (authentication required)."""
+async def list_users(db: Session = Depends(get_db)):
+    """Publicly list all registered users."""
 
     users = db.query(User).order_by(User.created_at.desc()).all()
     return [UserResponse.from_orm(user) for user in users]
