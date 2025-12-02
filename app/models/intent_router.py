@@ -99,7 +99,30 @@ class IntentRouter:
 
         # Capability questions about the assistant
         "what can you do", "what can you help", "can you help me",
-        "what do you know", "what is your purpose"
+        "what do you know", "what is your purpose",
+
+        # Weather queries
+        "weather", "temperature", "forecast", "climate", "raining", "sunny",
+        "cold", "hot", "celsius", "fahrenheit", "weather today", "weather like",
+
+        # News/Current events
+        "news", "headlines", "breaking news", "latest news", "today's news",
+        "current events", "happening today", "in the news",
+
+        # Politics
+        "politics", "politician", "president", "congress", "senate", "political", "democrat", "republican",
+
+        # Sports
+        "sports", "game", "score", "match", "tournament", "championship",
+        "team", "player", "football", "basketball", "baseball", "soccer",
+
+        # Entertainment
+        "movie", "film", "show", "actor", "actress", "celebrity", "tv show",
+        "netflix", "series", "episode", "watching",
+
+        # General knowledge (non-technical)
+        "capital of", "population of", "largest city",
+        "tallest mountain", "deepest ocean"
     }
 
     def __init__(self, llm_client=None, use_llm_classification=False):
