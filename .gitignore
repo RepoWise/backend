@@ -100,3 +100,6 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+app/data/processed_repo_data.json
+app/data/view_data.json
