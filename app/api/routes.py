@@ -895,7 +895,7 @@ async def query_project_docs(request: QueryRequest):
                     "context_length": len(context),
                     "llm_model": llm_response.get("model"),
                     "generation_time_ms": llm_response.get("total_duration_ms"),
-                    "retrieval_confidence": base_confidence,
+                    "answer_confidence": base_confidence,
                 },
                 suggested_questions=suggested_questions,
                 conversation_state=updated_state,
