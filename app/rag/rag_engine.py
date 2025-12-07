@@ -4,6 +4,7 @@ Implements hybrid search, semantic chunking, and advanced retrieval
 Using local Sentence Transformers embeddings (free, offline, no API keys)
 """
 import hashlib
+from collections import defaultdict
 from typing import List, Dict, Optional, Tuple
 from loguru import logger
 
@@ -665,12 +666,12 @@ Do not include any explanation or additional text."""
         project_id: str,
         max_chunks: int = 10,
         max_chars: int = 6000,
-    ) -> Tuple[str, List[Dict], str]:
+    ) -> Tuple[str, List[Dict], str, float]:
         """
         Retrieve relevant context for LLM query using intelligent search
 
         Enhanced with multi-source retrieval for complex queries like sustainability
-        and main issue analysis.
+        and main issue analysis. Now includes confidence scoring and source deduplication.
 
         Args:
             query: User query
@@ -679,7 +680,7 @@ Do not include any explanation or additional text."""
             max_chars: Maximum total characters for context (default: 6000)
 
         Returns:
-            (context_string, source_chunks, query_type)
+            (context_string, deduplicated_sources, query_type, confidence_score)
         """
         # Classify query type for downstream use
         query_type = self._classify_query(query)
@@ -723,8 +724,19 @@ Do not include any explanation or additional text."""
             if total_chars >= max_chars:
                 break
 
+        # Aggregate sources using Noisy OR to deduplicate and calculate chunk counts
+        aggregated_sources = self._aggregate_scores_noisy_or(sources)
+
+        # Limit to max 5 unique sources as requested
+        aggregated_sources = aggregated_sources[:5]
+
+        # Calculate confidence score based on retrieval quality
+        confidence_score = self._calculate_answer_confidence(
+            aggregated_sources, query, query_type
+        )
+
         context = "\n\n---\n\n".join(context_parts)
-        return context, sources, query_type
+        return context, aggregated_sources, query_type, confidence_score
 
     def _get_multi_source_context(
         self,
@@ -733,13 +745,15 @@ Do not include any explanation or additional text."""
         query_type: str,
         max_chunks: int = 10,
         max_chars: int = 6000,
-    ) -> Tuple[str, List[Dict], str]:
+    ) -> Tuple[str, List[Dict], str, float]:
         """
         Multi-source context retrieval for complex queries
 
         Performs multiple targeted searches and combines results intelligently.
         Used for sustainability and main issue queries that benefit from
         analyzing multiple document types together.
+
+        Now includes confidence scoring and source deduplication.
 
         Args:
             query: User query
@@ -749,7 +763,7 @@ Do not include any explanation or additional text."""
             max_chars: Maximum total characters
 
         Returns:
-            (context_string, source_chunks, query_type)
+            (context_string, deduplicated_sources, query_type, confidence_score)
         """
         logger.info(f"Using multi-source retrieval for {query_type}")
 
@@ -834,13 +848,241 @@ Do not include any explanation or additional text."""
             if total_chars >= max_chars:
                 break
 
-        context = "\n\n---\n\n".join(context_parts)
-        logger.info(
-            f"Multi-source context built: {len(sources)} sources, "
-            f"{total_chars} chars from {len(set(s['file_type'] for s in sources))} file types"
+        # Aggregate sources using Noisy OR to deduplicate and calculate chunk counts
+        aggregated_sources = self._aggregate_scores_noisy_or(sources)
+
+        # Limit to max 5 unique sources as requested
+        aggregated_sources = aggregated_sources[:5]
+
+        # Calculate confidence score based on retrieval quality
+        confidence_score = self._calculate_answer_confidence(
+            aggregated_sources, query, query_type
         )
 
-        return context, sources, query_type
+        context = "\n\n---\n\n".join(context_parts)
+        logger.info(
+            f"Multi-source context built: {len(aggregated_sources)} unique sources, "
+            f"{total_chars} chars from {len(set(s['file_type'] for s in aggregated_sources))} file types, "
+            f"confidence={confidence_score:.3f}"
+        )
+
+        return context, aggregated_sources, query_type, confidence_score
+
+    def _aggregate_scores_noisy_or(self, sources: List[Dict]) -> List[Dict]:
+        """
+        Deduplicate sources and aggregate scores using Noisy OR formula
+
+        The Noisy OR aggregation treats multiple chunks from the same document
+        as independent pieces of evidence. The probability that at least one
+        chunk is relevant is: P(relevant) = 1 - ∏(1 - score_i)
+
+        This rewards having multiple matching chunks from the same document,
+        giving higher confidence when evidence appears repeatedly.
+
+        Args:
+            sources: List of source dictionaries with file_path, file_type, and score
+
+        Returns:
+            List of unique sources with aggregated scores, chunk_count, and confidence_label
+        """
+        if not sources:
+            return []
+
+        # Group sources by file_path
+        file_groups = defaultdict(list)
+        for source in sources:
+            file_path = source.get("file_path", "")
+            file_groups[file_path].append(source)
+
+        # Aggregate scores for each unique file
+        aggregated_sources = []
+        for file_path, chunks in file_groups.items():
+            # Get file_type from first chunk (all chunks from same file have same type)
+            file_type = chunks[0].get("file_type", "")
+
+            # Apply Noisy OR formula: P(relevant) = 1 - ∏(1 - score_i)
+            # This treats each chunk as independent evidence
+            prob_not_relevant = 1.0
+            for chunk in chunks:
+                chunk_score = chunk.get("score", 0)
+                # Ensure score is in valid range [0, 1]
+                chunk_score = max(0.0, min(1.0, chunk_score))
+                prob_not_relevant *= (1 - chunk_score)
+
+            # Final aggregated score
+            aggregated_score = 1 - prob_not_relevant
+
+            # Get confidence label for this score
+            confidence_label = self._get_confidence_label(aggregated_score)
+
+            aggregated_sources.append({
+                "file_path": file_path,
+                "file_type": file_type,
+                "score": aggregated_score,
+                "chunk_count": len(chunks),
+                "confidence_label": confidence_label
+            })
+
+        # Sort by aggregated score (highest first)
+        aggregated_sources.sort(key=lambda x: x["score"], reverse=True)
+
+        logger.debug(
+            f"Aggregated {len(sources)} chunks into {len(aggregated_sources)} unique sources"
+        )
+
+        return aggregated_sources
+
+    def _get_confidence_label(self, score: float) -> str:
+        """
+        Map numeric confidence score to categorical label
+
+        Thresholds based on empirical analysis of retrieval quality:
+        - Very High (≥0.85): Strong evidence, highly relevant content
+        - High (≥0.70): Good evidence, clearly relevant
+        - Medium (≥0.50): Moderate evidence, potentially relevant
+        - Low (<0.50): Weak evidence, uncertain relevance
+
+        Args:
+            score: Numeric confidence score in range [0, 1]
+
+        Returns:
+            Confidence label string
+        """
+        if score >= 0.85:
+            return "Very High"
+        elif score >= 0.70:
+            return "High"
+        elif score >= 0.50:
+            return "Medium"
+        else:
+            return "Low"
+
+    def _calculate_answer_confidence(
+        self,
+        sources: List[Dict],
+        query: str,
+        query_type: str
+    ) -> float:
+        """
+        Calculate multi-factor confidence score for retrieval quality
+
+        Combines multiple signals to provide a calibrated confidence estimate:
+        1. Base retrieval score (weighted combination of max and average)
+        2. Evidence quality multiplier (based on number of matching chunks)
+        3. Query complexity boost (complex queries get conservative boost)
+        4. Source coverage boost (diverse file types indicate thorough retrieval)
+        5. Chunk density boost (multiple chunks from same file = strong evidence)
+
+        Args:
+            sources: List of retrieved sources with scores
+            query: User query
+            query_type: Classified query type
+
+        Returns:
+            Confidence score in range [0, 1]
+        """
+        if not sources:
+            return 0.0
+
+        # Extract scores from sources
+        scores = [s.get("score", 0) for s in sources]
+
+        # 1. Base Score: Weighted combination of max and average top-3
+        # This balances the highest quality match with broader evidence
+        max_score = max(scores)
+        top_3_scores = sorted(scores, reverse=True)[:3]
+        avg_top_3 = sum(top_3_scores) / len(top_3_scores) if top_3_scores else 0
+
+        base_score = 0.7 * max_score + 0.3 * avg_top_3
+
+        # 2. Evidence Quality Multiplier
+        # More matching chunks = stronger evidence
+        total_chunks = sum(s.get("chunk_count", 1) for s in sources)
+
+        if total_chunks >= 8:
+            # Very strong evidence: multiple chunks from multiple sources
+            evidence_multiplier = 1.15
+        elif total_chunks >= 5:
+            # Good evidence: several chunks
+            evidence_multiplier = 1.10
+        elif total_chunks <= 2:
+            # Weak evidence: very few chunks
+            evidence_multiplier = 0.90
+        else:
+            # Normal evidence
+            evidence_multiplier = 1.0
+
+        # Apply evidence multiplier
+        score = base_score * evidence_multiplier
+
+        # 3. Query Complexity Boost
+        # Complex queries deserve conservative confidence boost
+        query_length = len(query.split())
+        complexity_boost = 0.0
+
+        if query_length >= 10:
+            # Long, complex query
+            complexity_boost = 0.05
+        elif query_length >= 6:
+            # Moderate complexity
+            complexity_boost = 0.03
+
+        # Complex query types also get boost
+        if query_type in ["what_sustainability", "what_main_issue"]:
+            complexity_boost += 0.05
+
+        score += complexity_boost
+
+        # 4. Source Coverage Boost
+        # Diverse file types indicate comprehensive retrieval
+        unique_file_types = len(set(s.get("file_type", "") for s in sources))
+
+        if unique_file_types >= 4:
+            # Excellent coverage: 4+ different file types
+            coverage_boost = 0.08
+        elif unique_file_types >= 3:
+            # Good coverage: 3 file types
+            coverage_boost = 0.05
+        elif unique_file_types >= 2:
+            # Moderate coverage: 2 file types
+            coverage_boost = 0.03
+        else:
+            # Single file type (no boost)
+            coverage_boost = 0.0
+
+        score += coverage_boost
+
+        # 5. Chunk Density Boost
+        # Multiple chunks from same file = concentrated relevant content
+        max_chunks_per_file = max(s.get("chunk_count", 1) for s in sources)
+
+        if max_chunks_per_file >= 4:
+            # Very dense evidence in one file
+            density_boost = 0.06
+        elif max_chunks_per_file >= 3:
+            # Good density
+            density_boost = 0.04
+        elif max_chunks_per_file >= 2:
+            # Moderate density
+            density_boost = 0.02
+        else:
+            density_boost = 0.0
+
+        score += density_boost
+
+        # Clamp final score to [0, 1]
+        score = max(0.0, min(1.0, score))
+
+        logger.debug(
+            f"Confidence calculation: base={base_score:.3f}, "
+            f"evidence={evidence_multiplier:.2f}x, "
+            f"complexity_boost={complexity_boost:.3f}, "
+            f"coverage_boost={coverage_boost:.3f}, "
+            f"density_boost={density_boost:.3f}, "
+            f"final={score:.3f}"
+        )
+
+        return score
 
     def delete_project_documents(self, project_id: str) -> bool:
         """Delete all documents for a project (deletes entire collection)"""

@@ -812,8 +812,8 @@ async def query_project_docs(request: QueryRequest):
             raise HTTPException(status_code=404, detail="Project not found")
 
         if intent == "PROJECT_DOC_BASED":
-            # Use existing ChromaDB vector RAG
-            context, sources, query_type = rag_engine.get_context_for_query(
+            # Use existing ChromaDB vector RAG (now with confidence scoring)
+            context, sources, query_type, base_confidence = rag_engine.get_context_for_query(
                 request.query,
                 request.project_id,
                 max_chunks=request.max_results,
@@ -861,10 +861,13 @@ async def query_project_docs(request: QueryRequest):
                 query_type=query_type,
             )
 
+            # Get generated answer
+            generated_answer = llm_response.get("response", "")
+
             # Update conversation state
             conv_manager.update_after_response(
                 request.query,
-                llm_response.get("response", "")
+                generated_answer
             )
             updated_state = ConversationState(
                 running_summary=conv_manager.running_summary,
@@ -876,14 +879,14 @@ async def query_project_docs(request: QueryRequest):
             suggested_questions = question_suggester.suggest_questions(
                 current_query=request.query,
                 intent=intent,
-                answer=llm_response.get("response", ""),
+                answer=generated_answer,
                 project_context={"project_name": project["name"], "project_id": request.project_id}
             )
 
             return QueryResponse(
                 project_id=request.project_id,
                 query=request.query,
-                response=llm_response.get("response", ""),
+                response=generated_answer,
                 sources=sources,
                 metadata={
                     "intent": intent,
@@ -892,6 +895,7 @@ async def query_project_docs(request: QueryRequest):
                     "context_length": len(context),
                     "llm_model": llm_response.get("model"),
                     "generation_time_ms": llm_response.get("total_duration_ms"),
+                    "retrieval_confidence": base_confidence,
                 },
                 suggested_questions=suggested_questions,
                 conversation_state=updated_state,
