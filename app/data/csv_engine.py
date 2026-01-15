@@ -366,6 +366,12 @@ result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, pd.Times
 "Commits this year?" (MUST calculate year start inline)
 result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, 1, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
 
+"Who are the top 10 contributors in the past 6 months?" (MUST calculate cutoff date inline)
+result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
+"Who are the top 10 contributors in the last 3 months?" (MUST calculate cutoff date inline)
+result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=3)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
 # Category E: Pattern Detection (file co-modification, outliers)
 "Which commit modified the most files?"
 result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'message': 'first'}}).sort_values('filename', ascending=False).head({limit}).reset_index()
@@ -697,8 +703,8 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             # Unique contributors (must be checked BEFORE aggregation queries)
             if any(kw in query_lower for kw in ["unique contributor", "distinct contributor", "how many contributor", "number of contributor", "count contributor"]):
                 df, summary = self.query_commits(project_id, "unique_contributors")
-            # Latest commits
-            elif any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]) and not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every"]):
+            # Latest commits (exclude ranking queries like "top", "most" to prevent misrouting)
+            elif any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]) and not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every", "top", "most", "highest", "largest", "biggest", "contributor"]):
                 df, summary = self.query_commits(project_id, "latest", limit=10)
             # Basic stats (uses predefined aggregation)
             elif query_lower in ["stats", "statistics", "summary"] or (any(kw in query_lower for kw in ["how many total", "total commits", "total authors"]) and "average" not in query_lower):

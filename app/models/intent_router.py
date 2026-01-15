@@ -116,8 +116,8 @@ class IntentRouter:
         "sports", "game", "score", "match", "tournament", "championship",
         "team", "player", "football", "basketball", "baseball", "soccer",
 
-        # Entertainment
-        "movie", "film", "show", "actor", "actress", "celebrity", "tv show",
+        # Entertainment (removed standalone "show" - too broad, matches "show me...")
+        "movie", "film", "actor", "actress", "celebrity", "tv show",
         "netflix", "series", "episode", "watching",
 
         # General knowledge (non-technical)
