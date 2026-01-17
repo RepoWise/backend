@@ -394,12 +394,66 @@ result = pd.DataFrame({{'unique_files': [df['filename'].nunique()]}})
 
 # Category G: Issues-specific
 "Issues with highest comment count?"
-result = df.nlargest({limit}, 'comment_count')[['issue_num', 'title', 'comment_count', 'issue_state', 'user_login']]
+result = df.nlargest({limit}, 'comment_count')[['issue_num', 'title', 'comment_count', 'issue_state', 'user_login']].sort_values('comment_count', ascending=False)
 
 "Average time to close issues?"
 closed_issues = df[df['issue_state'] == 'closed'].copy()
 closed_issues['time_to_close'] = (pd.to_datetime(closed_issues['updated_at']) - pd.to_datetime(closed_issues['created_at'])).dt.days
 result = pd.DataFrame({{'avg_days_to_close': [closed_issues['time_to_close'].mean()]}})
+
+"Who are the most active issue reporters?"
+result = df.groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='issues_reported')
+
+"Who filed the most bug reports?"
+result = df[df['title'].str.contains('bug', case=False, na=False)].groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='bug_reports')
+
+"Who raises the most issues?"
+result = df.groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='issues_count')
+
+"Show me issues with the bug label?" (filter by title/label containing 'bug')
+result = df[df['title'].str.contains('bug', case=False, na=False)].head({limit})[['issue_num', 'title', 'user_login', 'issue_state', 'created_at']]
+
+"Show me high-priority issues?" (filter by title/label containing 'priority')
+result = df[df['title'].str.contains('priority|urgent|critical', case=False, na=False)].head({limit})[['issue_num', 'title', 'user_login', 'issue_state', 'created_at']]
+
+"Which issues are stale?" (open for >6 months)
+result = df[(df['issue_state'] == 'open') & (pd.to_datetime(df['created_at']) < pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6))].head({limit})[['issue_num', 'title', 'user_login', 'created_at']]
+
+"What are the oldest open issues?"
+result = df[df['issue_state'] == 'open'].nsmallest({limit}, 'created_at')[['issue_num', 'title', 'user_login', 'created_at']]
+
+"How quickly are issues being closed?" (average days to close)
+closed_issues = df[df['issue_state'] == 'closed'].copy()
+closed_issues['time_to_close'] = (pd.to_datetime(closed_issues['updated_at']) - pd.to_datetime(closed_issues['created_at'])).dt.days
+result = pd.DataFrame({{'avg_days_to_close': [closed_issues['time_to_close'].mean()]}})
+
+"What is the issue closure rate?" (percentage closed)
+total = len(df)
+closed = len(df[df['issue_state'] == 'closed'])
+result = pd.DataFrame({{'total_issues': [total], 'closed_issues': [closed], 'closure_rate_pct': [(closed/total)*100 if total > 0 else 0]}})
+
+# Category H: Commits - Additional Patterns
+"Show me pull requests from last week" (filter commits with 'pull request' in message)
+result = df[(df['message'].str.contains('pull request|merge|pr ', case=False, na=False)) & (df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(weeks=1))].head({limit})[['commit_sha', 'name', 'date', 'message']]
+
+"What is the code churn rate?" (total lines added + deleted)
+total_added = df['lines_added'].sum()
+total_deleted = df['lines_deleted'].sum()
+result = pd.DataFrame({{'total_lines_added': [total_added], 'total_lines_deleted': [total_deleted], 'total_churn': [total_added + total_deleted]}})
+
+"What is the commit frequency?" (commits per month)
+df['month'] = pd.to_datetime(df['date']).dt.to_period('M')
+result = df.groupby('month').size().reset_index(name='commit_count')
+
+"Who are the core developers?" (top contributors by commit count)
+result = df.groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+
+"Who is the core developer?" (single top contributor by commit count)
+result = df.groupby('name').size().sort_values(ascending=False).head(1).reset_index(name='commit_count')
+
+"Show me development activity" (commits per week last 3 months)
+df['week'] = pd.to_datetime(df['date']).dt.to_period('W')
+result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=3)].groupby('week').size().reset_index(name='commits')
 
 Now generate pandas code for the query "{query}". Return ONLY the code, nothing else:"""
 
@@ -531,8 +585,8 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             # First get unique commits by timestamp, then take top N
             unique_commits = df.drop_duplicates(subset=['commit_sha'], keep='first')
             result = unique_commits.nlargest(limit, 'timestamp')[
-                ['commit_sha', 'name', 'email', 'date']
-            ]
+                ['commit_sha', 'name', 'email', 'date', 'timestamp']
+            ].sort_values('timestamp', ascending=False).drop(columns=['timestamp'])
             summary = f"Latest {len(result)} distinct commits"
 
         elif query_type == "by_author":
@@ -554,7 +608,7 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             }).rename(columns={'commit_sha': 'commit_count'})
 
             contributors['total_changes'] = contributors['lines_added'] + contributors['lines_deleted']
-            result = contributors.nlargest(limit, 'commit_count').reset_index()
+            result = contributors.nlargest(limit, 'commit_count').sort_values('commit_count', ascending=False).reset_index()
             summary = f"Top {len(result)} contributors by commit count"
 
         elif query_type == "stats":
@@ -623,7 +677,7 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
         if query_type == "latest":
             result = issues_df.nlargest(limit, 'created_at')[
                 ['issue_num', 'title', 'user_login', 'issue_state', 'created_at']
-            ]
+            ].sort_values('created_at', ascending=False)
             summary = f"Latest {len(result)} issues"
 
         elif query_type == "open":
@@ -631,7 +685,7 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             open_issues = issues_df[issues_df['issue_state'].str.lower() == 'open']
             result = open_issues.nlargest(limit, 'created_at')[
                 ['issue_num', 'title', 'user_login', 'created_at']
-            ]
+            ].sort_values('created_at', ascending=False)
             summary = f"Open issues: {len(result)} shown (total: {len(open_issues)})"
 
         elif query_type == "closed":
@@ -639,7 +693,7 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             closed_issues = issues_df[issues_df['issue_state'].str.lower() == 'closed']
             result = closed_issues.nlargest(limit, 'updated_at')[
                 ['issue_num', 'title', 'user_login', 'created_at', 'updated_at']
-            ]
+            ].sort_values('updated_at', ascending=False)
             summary = f"Closed issues: {len(result)} shown (total: {len(closed_issues)})"
 
         elif query_type == "by_user":
@@ -655,7 +709,7 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
 
             result = issues_df.nlargest(limit, 'comment_count')[
                 ['issue_num', 'title', 'user_login', 'comment_count', 'issue_state']
-            ]
+            ].sort_values('comment_count', ascending=False)
             summary = f"Most commented issues: {len(result)} shown"
 
         elif query_type == "stats":
@@ -704,52 +758,164 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
             if any(kw in query_lower for kw in ["unique contributor", "distinct contributor", "how many contributor", "number of contributor", "count contributor"]):
                 df, summary = self.query_commits(project_id, "unique_contributors")
             # Latest commits (exclude ranking queries like "top", "most" to prevent misrouting)
-            elif any(kw in query_lower for kw in ["latest", "recent", "newest", "last"]) and not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every", "top", "most", "highest", "largest", "biggest", "contributor"]):
-                df, summary = self.query_commits(project_id, "latest", limit=10)
+            # Also handle "commit history" as latest commits
+            elif (any(kw in query_lower for kw in ["latest", "recent", "newest", "last", "commit history"]) and
+                  not any(kw in query_lower for kw in ["average", "trend", "pattern", "all", "every", "top", "most", "highest", "largest", "biggest", "contributor", "week", "month", "quarter", "year"])):
+                # Detect singular vs plural to determine limit
+                # Singular: "latest commit", "last commit", "recent commit" → limit=1
+                # Plural: "latest commits", "recent commits" → limit=5 (default)
+                is_singular = any(phrase in query_lower for phrase in [
+                    "latest commit ", "latest commit?", "latest commit.",
+                    "recent commit ", "recent commit?", "recent commit.",
+                    "last commit ", "last commit?", "last commit.",
+                    "newest commit ", "newest commit?", "newest commit.",
+                    "show me the commit", "what is the commit", "what's the commit"
+                ])
+                limit = 1 if is_singular else 5
+                df, summary = self.query_commits(project_id, "latest", limit=limit)
             # Basic stats (uses predefined aggregation)
-            elif query_lower in ["stats", "statistics", "summary"] or (any(kw in query_lower for kw in ["how many total", "total commits", "total authors"]) and "average" not in query_lower):
+            # Also handle "contributor statistics" and "development activity"
+            elif (query_lower in ["stats", "statistics", "summary", "contributor statistics"] or
+                  any(kw in query_lower for kw in ["how many total", "total commits", "total authors", "development activity", "how active"]) and "average" not in query_lower):
                 df, summary = self.query_commits(project_id, "stats")
 
             # COMPLEX QUERIES - These need full dataset access via LLM pandas generation
+
+            # Temporal queries (must check BEFORE aggregation to catch "commits from last month", "pull requests from last week")
+            elif any(kw in query_lower for kw in ["last month", "last week", "past month", "past week", "past year", "this quarter", "this month", "this year", "past 6 months", "past 3 months"]):
+                logger.info(f"Detected temporal query requiring date filtering, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+
+            # Core developer queries (top contributors by commit count)
+            # Handle singular vs plural for appropriate result limit
+            elif any(kw in query_lower for kw in ["core developer", "key developer", "main developer", "active developer"]):
+                # Detect singular vs plural to determine limit
+                # Singular: "who is the core developer" → limit=1 (top contributor)
+                # Plural: "who are the core developers" → limit=5 (top 5 contributors)
+                #
+                # IMPORTANT: Check for PLURAL first since "developer" is substring of "developers"
+                is_plural = any(phrase in query_lower for phrase in [
+                    "core developers", "key developers", "main developers", "active developers"
+                ])
+                # If not explicitly plural, check for singular patterns
+                is_singular = not is_plural and any(phrase in query_lower for phrase in [
+                    "core developer", "key developer", "main developer", "active developer",
+                    "is the core", "is the key", "is the main", "is the active"
+                ])
+                limit = 1 if is_singular else 5
+                logger.info(f"Detected core developer query ({'singular' if is_singular else 'plural'}), returning top {limit} contributors")
+                df, summary = self.query_with_llm(project_id, query, "commits", limit=limit)
+
             # Aggregation queries (average, sum, patterns, trends, comparisons, unique counts)
-            elif any(kw in query_lower for kw in ["average", "mean", "median", "sum", "total lines", "pattern", "trend", "trending", "compare", "ratio", "percentage", "unique", "distinct", "nunique"]):
+            # Added: commit frequency, code churn, lines added
+            elif any(kw in query_lower for kw in ["average", "mean", "median", "sum", "total lines", "pattern", "trend", "trending", "compare", "ratio", "percentage", "unique", "distinct", "nunique", "frequency", "churn", "lines added", "lines deleted", "code changes"]):
                 logger.info(f"Detected aggregation query requiring full dataset, using LLM-powered pandas generation")
                 df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+
             # Filtered queries (who did X, what files with Y, etc.)
-            elif any(kw in query_lower for kw in ["documentation", "doc", "readme", "test", "bug", "feature", "fix", "focus on", "responsible for", "added or removed"]):
+            # Note: "core developer" now handled separately above with singular/plural detection
+            elif any(kw in query_lower for kw in ["documentation", "doc", "readme", "test", "bug", "feature", "fix", "focus on", "responsible for", "added or removed", "pull request", "pr "]):
                 logger.info(f"Detected filtered query requiring full dataset, using LLM-powered pandas generation")
                 df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+
             # Top/most queries (top contributors, most lines, etc.)
-            elif any(kw in query_lower for kw in ["top", "most", "highest", "largest", "biggest", "least", "smallest"]):
+            # Added: most active, which developer
+            elif any(kw in query_lower for kw in ["top", "most", "highest", "largest", "biggest", "least", "smallest", "most active", "which developer"]):
                 logger.info(f"Detected ranking query requiring full dataset, using LLM-powered pandas generation")
                 df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+
             # File queries
-            elif any(kw in query_lower for kw in ["file", "files", "modified"]):
+            elif any(kw in query_lower for kw in ["file", "files", "modified", "changed this file"]):
                 logger.info(f"Detected file query, using LLM-powered pandas generation")
                 df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
+
             # Default: use LLM for any unclassified query to ensure correctness
             else:
                 logger.info(f"Unclassified query, using LLM-powered pandas generation for safety")
                 df, summary = self.query_with_llm(project_id, query, "commits", limit=100)
 
         else:  # issues
-            # Most commented (CHECK FIRST - specific queries take priority over stats)
-            if any(kw in query_lower for kw in ["comment count", "most comment", "highest comment", "discussion"]):
+            # EXPANDED ISSUES HANDLING
+
+            # Who raises/filed most queries (reporter ranking) - CHECK FIRST before comment queries
+            if any(kw in query_lower for kw in ["who raise", "who file", "who opened", "who reported", "most active reporter", "most active issue reporter", "who are the most active issue reporters"]):
+                logger.info(f"Detected reporter ranking query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "issues", limit=100)
+
+            # Who commented queries (comment author analysis)
+            elif any(kw in query_lower for kw in ["who comment", "who has commented"]):
+                logger.info(f"Detected comment author query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "issues", limit=100)
+
+            # Most commented (specific queries take priority over stats)
+            elif any(kw in query_lower for kw in ["comment count", "most comment", "highest comment", "discussion"]):
                 df, summary = self.query_issues(project_id, "most_commented", limit=5)
+
             # Stats (aggregation queries)
-            elif any(kw in query_lower for kw in ["stat", "statistics", "how many", "total", "versus", "vs", "who opened"]) and "comment" not in query_lower:
+            # Handle "how many bugs", "feature requests", "versus", etc.
+            elif (any(kw in query_lower for kw in ["stat", "statistics", "how many", "total", "versus", "vs", "ratio"]) and
+                  "comment" not in query_lower and "raise" not in query_lower and "file" not in query_lower):
                 df, summary = self.query_issues(project_id, "stats")
+
+            # Temporal queries (created this week, closed last month, etc.)
+            elif any(kw in query_lower for kw in ["last month", "last week", "this week", "this month", "created", "closed last"]):
+                logger.info(f"Detected temporal issues query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "issues", limit=100)
+
+            # Closure/response time queries (need time calculations)
+            elif any(kw in query_lower for kw in ["how quickly", "closure rate", "response time", "time to close"]):
+                logger.info(f"Detected time-based analysis query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "issues", limit=100)
+
+            # Filtered queries (label, priority, stale, need attention)
+            elif any(kw in query_lower for kw in ["label", "priority", "high-priority", "stale", "need attention", "need help", "oldest"]):
+                logger.info(f"Detected filtered issues query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "issues", limit=100)
+
+            # Assigned queries
+            elif any(kw in query_lower for kw in ["assigned", "assignee", "who assigned"]):
+                logger.info(f"Detected assignee query, using LLM-powered pandas generation")
+                df, summary = self.query_with_llm(project_id, query, "issues", limit=100)
+
             # Recently updated
             elif any(kw in query_lower for kw in ["updated", "recently updated", "most recent"]):
-                df, summary = self.query_issues(project_id, "latest", limit=5)
+                # Detect singular vs plural for issues
+                is_singular = any(phrase in query_lower for phrase in [
+                    "latest issue ", "latest issue?", "latest issue.",
+                    "recent issue ", "recent issue?", "recent issue.",
+                    "newest issue ", "newest issue?", "newest issue.",
+                    "show me the issue", "what is the issue", "what's the issue"
+                ])
+                limit = 1 if is_singular else 5
+                df, summary = self.query_issues(project_id, "latest", limit=limit)
+
             # Open issues
-            elif "open" in query_lower and "closed" not in query_lower:
-                df, summary = self.query_issues(project_id, "open", limit=5)
+            elif "open" in query_lower and "closed" not in query_lower and "vs" not in query_lower and "versus" not in query_lower:
+                is_singular = any(phrase in query_lower for phrase in [
+                    "open issue ", "open issue?", "open issue.",
+                    "show me the open issue", "what is the open issue"
+                ])
+                limit = 1 if is_singular else 5
+                df, summary = self.query_issues(project_id, "open", limit=limit)
+
             # Closed issues
-            elif "closed" in query_lower and "open" not in query_lower:
-                df, summary = self.query_issues(project_id, "closed", limit=5)
+            elif "closed" in query_lower and "open" not in query_lower and "vs" not in query_lower and "versus" not in query_lower:
+                is_singular = any(phrase in query_lower for phrase in [
+                    "closed issue ", "closed issue?", "closed issue.",
+                    "show me the closed issue", "what is the closed issue"
+                ])
+                limit = 1 if is_singular else 5
+                df, summary = self.query_issues(project_id, "closed", limit=limit)
+
+            # Default fallback
             else:
-                df, summary = self.query_issues(project_id, "latest", limit=5)
+                logger.info(f"Unclassified issues query, using latest issues")
+                is_singular = any(phrase in query_lower for phrase in [
+                    "latest issue ", "latest issue?", "latest issue.",
+                    "show me the issue", "what is the issue"
+                ])
+                limit = 1 if is_singular else 5
+                df, summary = self.query_issues(project_id, "latest", limit=limit)
 
         # Format as context for LLM
         if df.empty:

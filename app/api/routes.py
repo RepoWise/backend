@@ -107,6 +107,7 @@ class ConversationState(BaseModel):
     running_summary: str = ""
     last_exchange: Optional[Dict[str, str]] = None
     turn_count: int = 0
+    project_id: Optional[str] = None  # Track which project this conversation is about
 
 
 class QueryRequest(BaseModel):
@@ -841,16 +842,27 @@ async def query_project_docs(request: QueryRequest):
                 conv_manager.from_dict({
                     "running_summary": request.conversation_state.running_summary,
                     "last_exchange": request.conversation_state.last_exchange,
-                    "turn_count": request.conversation_state.turn_count
+                    "turn_count": request.conversation_state.turn_count,
+                    "project_id": request.conversation_state.project_id if hasattr(request.conversation_state, 'project_id') else None
                 })
-                # Get conversation context from manager
-                conv_context = conv_manager.get_context_for_prompt()
-                if conv_context:
-                    context = f"{conv_context}\n\n{context}"
+
+                # Check if user switched projects and reset conversation if so
+                project_changed = conv_manager.check_and_reset_if_project_changed(request.project_id)
+                if project_changed:
+                    logger.info(f"Project changed - conversation reset for {request.project_id}")
+
+                # Get conversation context from manager (only if not reset)
+                if not project_changed:
+                    conv_context = conv_manager.get_context_for_prompt()
+                    if conv_context:
+                        context = f"{conv_context}\n\n{context}"
             elif request.conversation_history:
-                # Legacy approach: full history
+                # Legacy approach: full history (deprecated)
                 for msg in request.conversation_history:
                     conversation_history.append({"role": msg.role, "content": msg.content})
+            else:
+                # First query in conversation - set project_id
+                conv_manager.project_id = request.project_id
 
             llm_response = await llm_client.generate_response(
                 query=request.query,
@@ -872,7 +884,8 @@ async def query_project_docs(request: QueryRequest):
             updated_state = ConversationState(
                 running_summary=conv_manager.running_summary,
                 last_exchange=conv_manager.last_exchange,
-                turn_count=conv_manager.turn_count
+                turn_count=conv_manager.turn_count,
+                project_id=conv_manager.project_id
             )
 
             # Generate contextual follow-up questions
@@ -905,16 +918,29 @@ async def query_project_docs(request: QueryRequest):
             # Use CSV Query Engine
             data_type = "commits" if intent == "COMMITS" else "issues"
 
-            # Always create ConversationManager for tracking
+            # Create ConversationManager for tracking only (NOT for context)
+            # COMMITS/ISSUES queries are statistics-based and should NOT use conversation context
             conv_manager = ConversationManager(llm_client)
 
             if request.conversation_state and request.conversation_state.turn_count > 0:
-                # Load existing conversation state
+                # Load existing conversation state for continuity tracking
                 conv_manager.from_dict({
                     "running_summary": request.conversation_state.running_summary,
                     "last_exchange": request.conversation_state.last_exchange,
-                    "turn_count": request.conversation_state.turn_count
+                    "turn_count": request.conversation_state.turn_count,
+                    "project_id": request.conversation_state.project_id if hasattr(request.conversation_state, 'project_id') else None
                 })
+
+                # Check if user switched projects and reset conversation if so
+                project_changed = conv_manager.check_and_reset_if_project_changed(request.project_id)
+                if project_changed:
+                    logger.info(f"Project changed - conversation reset for {request.project_id}")
+
+                # NOTE: We do NOT inject conversation context for COMMITS/ISSUES queries
+                # These are data queries that should be answered based on statistics alone
+            else:
+                # First query in conversation - set project_id
+                conv_manager.project_id = request.project_id
 
             # Check if CSV data is available
             available_data = csv_engine.get_available_data(request.project_id)
@@ -1094,15 +1120,12 @@ async def query_project_docs(request: QueryRequest):
                     )
 
             # For non-aggregation queries, use LLM to generate response
-            # Add conversation context
-            llm_context = context
-            conv_context = conv_manager.get_context_for_prompt()
-            if conv_context:
-                llm_context = f"{conv_context}\n\n{context}"
+            # NOTE: We do NOT use conversation context for COMMITS/ISSUES
+            # These are data-driven statistical queries that should be answered based on data alone
 
             llm_response = await llm_client.generate_response(
                 query=request.query,
-                context=llm_context,  # Context with conversation history
+                context=context,  # Just the data context, NO conversation history
                 project_name=project["name"],
                 temperature=0.0,  # Zero temperature for maximum factual precision, prevent hallucinations
                 query_type=data_type,  # "commits" or "issues" - triggers CSV-specific prompting
@@ -1116,26 +1139,18 @@ async def query_project_docs(request: QueryRequest):
             updated_state = ConversationState(
                 running_summary=conv_manager.running_summary,
                 last_exchange=conv_manager.last_exchange,
-                turn_count=conv_manager.turn_count
+                turn_count=conv_manager.turn_count,
+                project_id=conv_manager.project_id
             )
 
-            # Format sources from CSV records
-            sources = []
-            for i, record in enumerate(records[:5]):  # Top 5 records
-                if data_type == "commits":
-                    sources.append({
-                        "file_path": f"Commit: {record.get('commit_sha', 'N/A')[:8]}",
-                        "file_type": "commits",
-                        "score": 1.0 - (i * 0.1),  # Decreasing relevance
-                        "content": f"{record.get('name')} - {record.get('filename')} ({record.get('date')})"
-                    })
-                else:  # issues
-                    sources.append({
-                        "file_path": f"Issue #{record.get('issue_num', 'N/A')}",
-                        "file_type": "issues",
-                        "score": 1.0 - (i * 0.1),
-                        "content": f"{record.get('title', 'N/A')} by {record.get('user_login', 'N/A')}"
-                    })
+            # Format sources - show single source for structured data queries
+            # (NOT individual records like RAG documents)
+            sources = [{
+                "file_path": f"{data_type.capitalize()} Data",
+                "file_type": data_type,
+                "score": 1.0,
+                "content": f"Analyzed {len(records)} {data_type} record{'s' if len(records) != 1 else ''} from repository data"
+            }]
 
             # Generate contextual follow-up questions
             suggested_questions = question_suggester.suggest_questions(

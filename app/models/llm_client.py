@@ -149,9 +149,11 @@ FORMATTING REQUIREMENTS:
 - For author queries: Include commit counts and provide GitHub usernames/emails
 
 RESPONSE STRUCTURE FOR DIFFERENT QUERY TYPES:
-→ "Who are top contributors?" → "Based on the provided commits data, the top N contributors by commit count are:\n\n1. [Name] with [X] commits\n2. [Name] with [X] commits..."
-→ "Latest commits?" → "The [N] latest commits are:\n\n1. [SHA]\n   Author: [Name] ([Email])\n   Date: [Date]\n   Message: [Message]\n\n2. [Next commit]..."
-→ "Has activity increased?" → "Based on commit data analysis: [State finding]. Over the past [period], there were [X] commits compared to [Y] in the previous period."
+→ "Who are top contributors?" → "Based on the provided commits data, the top 5 contributors by commit count are:\n\n1. John Smith with 45 commits\n2. Jane Doe with 32 commits..."
+→ "Latest commits?" → "Based on the provided commits data, the 3 latest commits are:\n\n1. SHA: abc123...\n   Author: John Smith (john@example.com)\n   Date: 2026-01-15\n   Message: Fix bug in authentication\n\n2. SHA: def456...\n   Author: Jane Doe (jane@example.com)..."
+→ "Has activity increased?" → "Based on commit data analysis: Activity has increased significantly. Over the past month, there were 67 commits compared to 45 in the previous month."
+
+CRITICAL: Always count the actual number of items in the data and use the EXACT count in your response. Replace placeholders like 'N', '3', '5' with the ACTUAL count from the data provided.
 
 RESPONSE LENGTH: Provide complete, well-structured answers with ALL requested items and details. Do not truncate lists.
 """,
@@ -176,10 +178,12 @@ FORMATTING REQUIREMENTS:
 - For reporter queries: List unique contributors with their issue counts
 
 RESPONSE STRUCTURE FOR DIFFERENT QUERY TYPES:
-→ "Highest comment count?" → "The top [N] issues with the highest comment counts are:\n\n1. Issue #[NUM]: [Title]\n   Comments: [X] | State: [STATE] | Created: [DATE]\n   Reporter: [USER]\n\n2. [Next issue]..."
-→ "Longest open issues?" → "The issues that have been open the longest are:\n\n1. Issue #[NUM] (open since [DATE], [X] days)\n   Title: [Title]\n   Reporter: [USER]\n\n2. [Next issue]..."
-→ "Recurring themes?" → "Based on analysis of [X] issues, the recurring themes are:\n\n- **[Theme 1]**: [Count] issues ([percentage]%) - Examples: #[NUM], #[NUM]\n- **[Theme 2]**: [Count] issues..."
-→ "Most active reporters?" → "The most active issue reporters are:\n\n1. [USER]: [X] issues reported\n2. [USER]: [X] issues reported..."
+→ "Highest comment count?" → "Based on the provided issues data, the top 5 issues with the highest comment counts are:\n\n1. Issue #234: Add support for Python 3.12\n   Comments: 47 | State: open | Created: 2025-12-15\n   Reporter: john_smith\n\n2. Issue #189: Performance degradation in large datasets..."
+→ "Longest open issues?" → "The issues that have been open the longest are:\n\n1. Issue #145 (open since 2024-06-10, 218 days)\n   Title: Improve documentation for API endpoints\n   Reporter: jane_doe\n\n2. Issue #167 (open since 2024-07-22, 176 days)..."
+→ "Recurring themes?" → "Based on analysis of 42 issues, the recurring themes are:\n\n- **Documentation**: 15 issues (35.7%) - Examples: #234, #189, #145\n- **Performance**: 12 issues (28.6%) - Examples: #167, #203..."
+→ "Most active reporters?" → "The most active issue reporters are:\n\n1. john_smith: 23 issues reported\n2. jane_doe: 18 issues reported\n3. contributor_xyz: 14 issues reported..."
+
+CRITICAL: Always count the actual number of items in the data and use the EXACT count in your response. Replace placeholders with actual values from the data provided.
 
 RESPONSE LENGTH: Provide complete, well-structured answers with ALL requested items and full details. Do not truncate lists or omit information.
 """,

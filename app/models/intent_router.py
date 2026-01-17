@@ -59,10 +59,15 @@ class IntentRouter:
 
     # Keywords for each intent type
     PROJECT_DOC_BASED_KEYWORDS = {
-        "maintainer", "maintains", "maintained", "contribute", "contributing", "governance",
+        "maintainer", "maintainers", "maintains", "maintained", "contribute", "contributing", "governance",
         "code of conduct", "coc", "license", "security", "policy", "guideline",
         "community", "decision", "voting", "leadership", "structure", "role",
-        "responsibility", "contact", "reporting", "process", "required", "rules"
+        "responsibility", "contact", "reporting", "process", "required", "rules",
+        # Code review and approval process keywords
+        "review", "reviewer", "reviews",
+        "merge", "merging",
+        "permission", "permissions", "access",
+        "approval", "approver", "approve"
     }
 
     COMMITS_KEYWORDS = {
@@ -70,7 +75,14 @@ class IntentRouter:
         "author", "file changed", "lines added", "lines deleted",
         "recent commit", "latest commit", "modification",
         "who changed", "when changed", "changelog", "most active", "top contributor",
-        "files did", "which files", "modified the most", "files have been"
+        "files did", "which files", "modified the most", "files have been",
+        # Pull request data and contributor actions
+        "pull request", "pull requests",
+        "who fixed", "fixed the most", "fixed most",
+        "who wrote", "who modified",
+        # Core developers and active contributors (statistical, commit-based)
+        "core developer", "core developers", "active developer", "active developers",
+        "key developer", "key developers", "main developer", "main developers"
     }
 
     ISSUES_KEYWORDS = {
@@ -193,6 +205,8 @@ Examples:
 **COMMITS**: Questions about commit history, code changes, file modifications, contributors, authorship, commit statistics, code activity, developer behavior patterns based on commits.
 Examples:
 - "Who are the top contributors by commit count?"
+- "Who are the core developers?" (statistical top contributors)
+- "Who is the core developer?" (top contributor)
 - "Which files have been modified the most?"
 - "Show me the latest commits"
 - "Who contributed to documentation?" (based on files changed)
@@ -425,7 +439,9 @@ Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
         # FALLBACK: HEURISTIC PATTERNS (no strong matches)
         # =================================================================
         if query_lower.startswith(("who ", "who's", "who are")):
-            if "maintain" in query_lower:
+            # Check governance/process context first (review process, permissions, etc.)
+            governance_terms = ["review", "merge", "permission", "approve", "approval", "access"]
+            if any(term in query_lower for term in governance_terms) or "maintain" in query_lower:
                 return "PROJECT_DOC_BASED", 0.65
             else:
                 return "COMMITS", 0.60
@@ -473,15 +489,28 @@ Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
             score: Float score based on match quality
             matched_keywords: List of keywords that matched
         """
+        import string
+
         count = 0
         matched = []
+
+        # Remove punctuation from text for better word boundary matching
+        text_clean = text.translate(str.maketrans('', '', string.punctuation))
+
         for keyword in keywords:
             if keyword in text:
                 matched.append(keyword)
-                # Exact word match scores higher
-                if f" {keyword} " in f" {text} " or text.startswith(keyword) or text.endswith(keyword):
+
+                # Check for exact word match with better boundary detection
+                # Use cleaned text (no punctuation) for word boundary checks
+                keyword_clean = keyword.translate(str.maketrans('', '', string.punctuation))
+
+                # Exact word match scores higher (1.5)
+                # Check word boundaries in cleaned text
+                if f" {keyword_clean} " in f" {text_clean} " or text_clean.startswith(keyword_clean) or text_clean.endswith(keyword_clean):
                     count += 1.5
                 else:
+                    # Partial match (0.5)
                     count += 0.5
         return count, matched
 
