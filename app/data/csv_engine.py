@@ -372,6 +372,15 @@ result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6)].
 "Who are the top 10 contributors in the last 3 months?" (MUST calculate cutoff date inline)
 result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=3)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
 
+"Show me commits from last month" (filter commits from the past month)
+result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=1)].head({limit})[['commit_sha', 'name', 'date', 'message']]
+
+"What commits were made last month?" (similar temporal filter)
+result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=1)].head({limit})[['commit_sha', 'name', 'date', 'message']]
+
+"Show me commits from last week" (filter commits from the past week)
+result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(weeks=1)].head({limit})[['commit_sha', 'name', 'date', 'message']]
+
 # Category E: Pattern Detection (file co-modification, outliers)
 "Which commit modified the most files?"
 result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'message': 'first'}}).sort_values('filename', ascending=False).head({limit}).reset_index()
@@ -421,6 +430,12 @@ result = df[(df['issue_state'] == 'open') & (pd.to_datetime(df['created_at']) < 
 
 "What are the oldest open issues?"
 result = df[df['issue_state'] == 'open'].nsmallest({limit}, 'created_at')[['issue_num', 'title', 'user_login', 'created_at']]
+
+"Show me the oldest open issues" (same as above - oldest by created_at)
+result = df[df['issue_state'] == 'open'].nsmallest({limit}, 'created_at')[['issue_num', 'title', 'user_login', 'created_at']]
+
+"List oldest issues that are still open" (filter open, sort by oldest)
+result = df[df['issue_state'] == 'open'].sort_values('created_at', ascending=True).head({limit})[['issue_num', 'title', 'user_login', 'created_at']]
 
 "How quickly are issues being closed?" (average days to close)
 closed_issues = df[df['issue_state'] == 'closed'].copy()
