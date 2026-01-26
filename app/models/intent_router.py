@@ -143,12 +143,11 @@ class IntentRouter:
 
         Args:
             llm_client: Optional LLM client for advanced classification
-            use_llm_classification: If True, use LLM for primary classification; if False, use keyword-based
-                                   (Deprecated: use classification_mode instead)
-            classification_mode: Classification method to use:
+            use_llm_classification: (Deprecated) If True, forces "llm" mode; if False, uses classification_mode
+            classification_mode: Classification method to use (default: "cot"):
                                 - "keyword": Rule-based keyword matching (fast, no LLM)
                                 - "llm": Simple LLM classification (legacy)
-                                - "cot": Chain of Thought with few-shot examples (recommended)
+                                - "cot": Chain of Thought with few-shot examples (recommended, default)
         """
         self.llm_client = llm_client
         self.use_llm_classification = use_llm_classification

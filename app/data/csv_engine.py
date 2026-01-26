@@ -35,6 +35,9 @@ class CSVDataEngine:
         # LLM client for dynamic query generation
         self.llm_client = llm_client
 
+        # Store last generated pandas code for retrieval
+        self.last_generated_code = ""
+
         logger.info("CSV Data Engine initialized (in-memory storage)")
 
     def mark_fetch_started(self, project_id: str, data_type: str):
@@ -274,7 +277,11 @@ class CSVDataEngine:
 
         Returns:
             (results_df, summary_text)
+
+        Note: The generated pandas code is stored in self.last_generated_code
         """
+        # Initialize last generated code
+        self.last_generated_code = ""
         if not self.llm_client:
             logger.warning("LLM client not available, falling back to default query")
             return pd.DataFrame(), "LLM query generation not available"
@@ -293,184 +300,166 @@ class CSVDataEngine:
         }
 
         # Create comprehensive prompt for LLM to generate pandas code
-        # Add data-type-specific column hints
+        # Add data-type-specific column hints with COMPLETE schema
         if data_type == "commits":
-            common_cols_hint = "Common columns: commit_sha, name, email, date, message, filename, lines_added, lines_deleted"
-        else:  # issues
-            common_cols_hint = "Common columns: issue_num, title, issue_state (open/closed), user_login, created_at, updated_at, comment_count"
+            schema_hint = """
+COMMITS DATA SCHEMA - ALL COLUMNS (use these EXACT column names):
+| Column          | Type    | Description                                           |
+|-----------------|---------|-------------------------------------------------------|
+| commit_sha      | string  | Unique commit identifier (use for deduplication)      |
+| name            | string  | Contributor name - USE THIS for "who" questions       |
+| email           | string  | Contributor email address                             |
+| date            | datetime| Commit timestamp (already parsed as datetime)         |
+| timestamp       | int     | Unix timestamp of commit                              |
+| filename        | string  | File path modified - USE THIS, NOT 'filepath'         |
+| change_type     | string  | 'A' (added), 'M' (modified), 'D' (deleted)           |
+| lines_added     | int     | Number of lines added in this file                    |
+| lines_deleted   | int     | Number of lines deleted in this file                  |
+| commit_message  | string  | Full commit message text                              |
+| commit_url      | string  | GitHub URL to the commit                              |
+| project         | string  | Project name                                          |
 
-        prompt = f"""You are a pandas expert analyzing OSS project data. Generate ONLY the pandas code to answer this query.
+CRITICAL RULES FOR COMMITS:
+1. ONE ROW PER FILE MODIFIED, not one row per commit
+2. To count COMMITS: df.drop_duplicates(subset=['commit_sha'])
+3. To count FILE MODIFICATIONS: use df directly (no dedup)
+4. Use 'name' for contributor names, NOT 'user_login'
+5. Use 'filename' for file paths, NOT 'filepath'
+6. Use 'commit_message' for message text, NOT 'message'"""
+        else:  # issues
+            schema_hint = """
+ISSUES DATA SCHEMA - ALL COLUMNS (use these EXACT column names):
+| Column          | Type    | Description                                           |
+|-----------------|---------|-------------------------------------------------------|
+| type            | string  | 'issue' or 'comment' - FILTER BY THIS                 |
+| issue_num       | int     | Issue number (e.g., 123 for issue #123)              |
+| title           | string  | Issue title (only for type='issue')                   |
+| user_login      | string  | GitHub username - USE THIS for "who" questions        |
+| user_name       | string  | Display name of user                                  |
+| user_email      | string  | Email of user                                         |
+| user_id         | int     | GitHub user ID                                        |
+| issue_state     | string  | 'OPEN' or 'CLOSED' (uppercase, use .str.lower())     |
+| created_at      | datetime| When issue/comment was created                        |
+| updated_at      | datetime| When issue/comment was last updated                   |
+| body            | string  | Issue/comment content text                            |
+| reactions       | string  | JSON string with reaction counts                      |
+| issue_url       | string  | API URL to the issue                                  |
+| comment_url     | string  | API URL to the comment (if type='comment')           |
+| repo_name       | string  | Repository name                                       |
+
+CRITICAL RULES FOR ISSUES:
+1. Dataset has BOTH issues AND comments (check 'type' column)
+2. To count ISSUES: df[df['type'] == 'issue']
+3. To count ISSUE REPORTERS: df[df['type'] == 'issue'].groupby('user_login')
+4. Use 'user_login' for reporter names, NOT 'name'
+5. issue_state is UPPERCASE ('OPEN'/'CLOSED'), use .str.lower() for comparison
+6. Comments have issue_state=NaN, so filtering by state excludes comments"""
+
+        prompt = f"""You are a pandas expert. Generate ONLY executable pandas code (no markdown, no explanations).
 
 Query: {query}
 Data type: {data_type}
 
-DataFrame name: df
-DataFrame schema:
-- Columns: {', '.join(schema_info['columns'])}
-- Row count: {schema_info['row_count']}
-- Data types: {schema_info['dtypes']}
-{common_cols_hint}
+{schema_hint}
 
-CRITICAL RULES:
-1. Return ONLY executable pandas code, NO explanations or markdown
-2. The code must assign the final result to a variable called 'result'
-3. Use .head({limit}) to limit results appropriately
-4. For aggregations, use groupby() and agg() methods
-5. Always reset_index() after groupby if needed
-6. DO NOT use exec(), eval(), or any dangerous operations
-7. DO NOT import anything - pandas is already imported as pd
-8. Handle NaN/missing values gracefully with dropna() or fillna()
-9. For string filtering, use .str.contains() with case=False, na=False
-10. For time-based queries, ensure datetime columns are parsed
+═══════════════════════════════════════════════════════════════════════════════
+                         MANDATORY RULES - READ FIRST
+═══════════════════════════════════════════════════════════════════════════════
 
-EXAMPLES BY QUERY TYPE:
+FOR COMMITS DATA - THESE 3 RULES ARE NON-NEGOTIABLE:
+1. ALWAYS use drop_duplicates(subset=['commit_sha']) when counting commits
+2. ALWAYS use 'name' column for contributor names (NEVER 'user_login')
+3. ALWAYS use 'filename' column for file paths (NEVER 'filepath')
 
-# Category A: Ranking (top/most/highest)
-"Who are the top 5 contributors by commit count?"
-result = df.groupby(['name', 'email']).size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+FOR ISSUES DATA:
+1. ALWAYS filter df[df['type'] == 'issue'] when counting issues or reporters
+2. ALWAYS use 'user_login' column for reporter names (NEVER 'name')
+3. ALWAYS use .str.lower() when comparing issue_state ('OPEN'/'CLOSED')
 
+═══════════════════════════════════════════════════════════════════════════════
+                      EXACT QUERY → CODE MAPPINGS
+═══════════════════════════════════════════════════════════════════════════════
+
+Match your query to these patterns and USE THE EXACT CODE:
+
+┌─ COMMITS QUERIES ────────────────────────────────────────────────────────────
+│
+│ "top 5 contributors by commit count" OR "top contributors":
+│ result = df.drop_duplicates(subset=['commit_sha']).groupby('name').size().sort_values(ascending=False).head(5).reset_index(name='commit_count')
+│
+│ "most active contributors":
+│ result = df.drop_duplicates(subset=['commit_sha']).groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
+│
+│ "top 10 contributors in the past 6 months" OR "last 6 months":
+│ result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6)].drop_duplicates(subset=['commit_sha']).groupby('name').size().sort_values(ascending=False).head(10).reset_index(name='commit_count')
+│
+│ "contributed to documentation" OR "documentation contributors":
+│ result = df[df['filename'].str.contains(r'README|\.md$|^docs/|CONTRIBUTING|CHANGELOG|LICENSE', case=False, na=False, regex=True)].drop_duplicates(subset=['commit_sha']).groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='doc_commits')
+│
+│ "top five files modified the most" OR "most modified files":
+│ result = df['filename'].value_counts().head(5).reset_index(name='modification_count')
+│
+│ "unique contributors" OR "how many contributors":
+│ result = pd.DataFrame({{'unique_contributors': [df['name'].nunique()]}})
+│
+└──────────────────────────────────────────────────────────────────────────────
+
+┌─ ISSUES QUERIES ─────────────────────────────────────────────────────────────
+│
+│ "most active issue reporters" OR "who raises most issues":
+│ result = df[df['type'] == 'issue'].groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='issues_reported')
+│
+│ "oldest open issues":
+│ result = df[(df['type'] == 'issue') & (df['issue_state'].str.lower() == 'open')].sort_values('created_at', ascending=True).head({limit})[['issue_num', 'title', 'user_login', 'created_at']]
+│
+│ "most commented issues":
+│ result = df[df['type'] == 'issue'].nlargest({limit}, 'comment_count')[['issue_num', 'title', 'comment_count', 'issue_state', 'user_login']]
+│
+│ "how quickly issues being closed" OR "average time to close":
+│ closed_issues = df[(df['type'] == 'issue') & (df['issue_state'].str.lower() == 'closed')].copy()
+│ closed_issues['time_to_close'] = (pd.to_datetime(closed_issues['updated_at']) - pd.to_datetime(closed_issues['created_at'])).dt.days
+│ result = pd.DataFrame({{'avg_days_to_close': [closed_issues['time_to_close'].mean()]}})
+│
+└──────────────────────────────────────────────────────────────────────────────
+
+DataFrame info: {len(schema_info['columns'])} columns, {schema_info['row_count']} rows
+Columns: {', '.join(schema_info['columns'])}
+
+CODE REQUIREMENTS:
+1. Assign final result to 'result' variable
+2. Use .head({limit}) to limit results
+3. No imports (pd is available)
+
+ADDITIONAL EXAMPLES (use these patterns):
+
+# COMMITS - Always use drop_duplicates and 'name' column:
 "Which files have the most lines added?"
 result = df.groupby('filename')['lines_added'].sum().sort_values(ascending=False).head({limit}).reset_index()
 
-# Category B: Filtered Aggregation (content-based filtering)
-"Who contributed to documentation?"
-result = df[df['message'].str.contains('doc|documentation|readme', case=False, na=False)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='doc_commits')
+"Bug fix commits per contributor?"
+result = df[df['commit_message'].str.contains('fix|bug', case=False, na=False)].drop_duplicates(subset=['commit_sha']).groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='bug_fixes')
 
-"How many bug fix commits per contributor?"
-result = df[df['message'].str.contains('fix|bug', case=False, na=False)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='bug_fixes')
+"Commits per month?"
+result = df.drop_duplicates(subset=['commit_sha']).groupby(df['date'].dt.to_period('M')).size().reset_index(name='commits')
 
-# Category C: Statistical Analysis (averages, medians, ratios)
-"What is the average commit size?"
-result = df[['lines_added', 'lines_deleted']].sum().to_frame(name='total').T
-result['avg_commit_size'] = (result['total'].sum()) / len(df)
-result = result[['avg_commit_size']]
+"Which commit modified most files?"
+result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'commit_message': 'first'}}).sort_values('filename', ascending=False).head({limit}).reset_index()
 
-"What is the ratio of lines added to deleted?"
-total_added = df['lines_added'].sum()
-total_deleted = df['lines_deleted'].sum()
-result = pd.DataFrame({{'lines_added': [total_added], 'lines_deleted': [total_deleted], 'ratio': [total_added / total_deleted if total_deleted > 0 else 0]}})
+# ISSUES - Always filter type='issue' and use 'user_login':
+"Bug reports by user?"
+result = df[(df['type'] == 'issue') & (df['title'].str.contains('bug', case=False, na=False))].groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='bug_reports')
 
-# Category D: Temporal Analysis (time-based grouping)
-"Commits per month in last year?"
-result = df[df['date'] >= pd.Timestamp.now() - pd.DateOffset(months=12)].groupby(df['date'].dt.to_period('M')).size().reset_index(name='commits')
+"Stale issues (open >6 months)?"
+result = df[(df['type'] == 'issue') & (df['issue_state'].str.lower() == 'open') & (pd.to_datetime(df['created_at']) < pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6))].head({limit})[['issue_num', 'title', 'user_login', 'created_at']]
 
-"Which day of week has most commits?"
-result = df.groupby(df['date'].dt.day_name()).size().sort_values(ascending=False).reset_index(name='commits')
-
-"Who are the top 5 contributors this quarter?" (MUST calculate quarter start inline)
-result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, ((pd.Timestamp.now(tz='UTC').month - 1) // 3) * 3 + 1, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
-
-"Top contributors this month?" (MUST calculate month start inline)
-result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, pd.Timestamp.now(tz='UTC').month, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
-
-"Commits this year?" (MUST calculate year start inline)
-result = df[df['date'] >= pd.Timestamp(pd.Timestamp.now(tz='UTC').year, 1, 1, tz='UTC')].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
-
-"Who are the top 10 contributors in the past 6 months?" (MUST calculate cutoff date inline)
-result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
-
-"Who are the top 10 contributors in the last 3 months?" (MUST calculate cutoff date inline)
-result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=3)].groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
-
-"Show me commits from last month" (filter commits from the past month)
-result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=1)].head({limit})[['commit_sha', 'name', 'date', 'message']]
-
-"What commits were made last month?" (similar temporal filter)
-result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=1)].head({limit})[['commit_sha', 'name', 'date', 'message']]
-
-"Show me commits from last week" (filter commits from the past week)
-result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(weeks=1)].head({limit})[['commit_sha', 'name', 'date', 'message']]
-
-# Category E: Pattern Detection (file co-modification, outliers)
-"Which commit modified the most files?"
-result = df.groupby('commit_sha').agg({{'filename': 'count', 'name': 'first', 'message': 'first'}}).sort_values('filename', ascending=False).head({limit}).reset_index()
-
-"Most frequently modified files?"
-result = df.groupby('filename').size().sort_values(ascending=False).head({limit}).reset_index(name='modification_count')
-
-# Category F: Count Unique (distinct values)
-"How many unique contributors are there?"
-result = pd.DataFrame({{'unique_contributors': [df['name'].nunique()]}})
-
-"Count unique contributors?"
-result = pd.DataFrame({{'count': [df['name'].nunique()], 'type': ['unique contributors']}})
-
-"How many unique email addresses?"
-result = pd.DataFrame({{'unique_emails': [df['email'].nunique()]}})
-
-"Number of distinct files modified?"
-result = pd.DataFrame({{'unique_files': [df['filename'].nunique()]}})
-
-# Category G: Issues-specific
-"Issues with highest comment count?"
-result = df.nlargest({limit}, 'comment_count')[['issue_num', 'title', 'comment_count', 'issue_state', 'user_login']].sort_values('comment_count', ascending=False)
-
-"Average time to close issues?"
-closed_issues = df[df['issue_state'] == 'closed'].copy()
-closed_issues['time_to_close'] = (pd.to_datetime(closed_issues['updated_at']) - pd.to_datetime(closed_issues['created_at'])).dt.days
-result = pd.DataFrame({{'avg_days_to_close': [closed_issues['time_to_close'].mean()]}})
-
-"Who are the most active issue reporters?"
-result = df.groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='issues_reported')
-
-"Who filed the most bug reports?"
-result = df[df['title'].str.contains('bug', case=False, na=False)].groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='bug_reports')
-
-"Who raises the most issues?"
-result = df.groupby('user_login').size().sort_values(ascending=False).head({limit}).reset_index(name='issues_count')
-
-"Show me issues with the bug label?" (filter by title/label containing 'bug')
-result = df[df['title'].str.contains('bug', case=False, na=False)].head({limit})[['issue_num', 'title', 'user_login', 'issue_state', 'created_at']]
-
-"Show me high-priority issues?" (filter by title/label containing 'priority')
-result = df[df['title'].str.contains('priority|urgent|critical', case=False, na=False)].head({limit})[['issue_num', 'title', 'user_login', 'issue_state', 'created_at']]
-
-"Which issues are stale?" (open for >6 months)
-result = df[(df['issue_state'] == 'open') & (pd.to_datetime(df['created_at']) < pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=6))].head({limit})[['issue_num', 'title', 'user_login', 'created_at']]
-
-"What are the oldest open issues?"
-result = df[df['issue_state'] == 'open'].nsmallest({limit}, 'created_at')[['issue_num', 'title', 'user_login', 'created_at']]
-
-"Show me the oldest open issues" (same as above - oldest by created_at)
-result = df[df['issue_state'] == 'open'].nsmallest({limit}, 'created_at')[['issue_num', 'title', 'user_login', 'created_at']]
-
-"List oldest issues that are still open" (filter open, sort by oldest)
-result = df[df['issue_state'] == 'open'].sort_values('created_at', ascending=True).head({limit})[['issue_num', 'title', 'user_login', 'created_at']]
-
-"How quickly are issues being closed?" (average days to close)
-closed_issues = df[df['issue_state'] == 'closed'].copy()
-closed_issues['time_to_close'] = (pd.to_datetime(closed_issues['updated_at']) - pd.to_datetime(closed_issues['created_at'])).dt.days
-result = pd.DataFrame({{'avg_days_to_close': [closed_issues['time_to_close'].mean()]}})
-
-"What is the issue closure rate?" (percentage closed)
-total = len(df)
-closed = len(df[df['issue_state'] == 'closed'])
+"Issue closure rate?"
+issues_only = df[df['type'] == 'issue']
+total = len(issues_only)
+closed = len(issues_only[issues_only['issue_state'].str.lower() == 'closed'])
 result = pd.DataFrame({{'total_issues': [total], 'closed_issues': [closed], 'closure_rate_pct': [(closed/total)*100 if total > 0 else 0]}})
 
-# Category H: Commits - Additional Patterns
-"Show me pull requests from last week" (filter commits with 'pull request' in message)
-result = df[(df['message'].str.contains('pull request|merge|pr ', case=False, na=False)) & (df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(weeks=1))].head({limit})[['commit_sha', 'name', 'date', 'message']]
-
-"What is the code churn rate?" (total lines added + deleted)
-total_added = df['lines_added'].sum()
-total_deleted = df['lines_deleted'].sum()
-result = pd.DataFrame({{'total_lines_added': [total_added], 'total_lines_deleted': [total_deleted], 'total_churn': [total_added + total_deleted]}})
-
-"What is the commit frequency?" (commits per month)
-df['month'] = pd.to_datetime(df['date']).dt.to_period('M')
-result = df.groupby('month').size().reset_index(name='commit_count')
-
-"Who are the core developers?" (top contributors by commit count)
-result = df.groupby('name').size().sort_values(ascending=False).head({limit}).reset_index(name='commit_count')
-
-"Who is the core developer?" (single top contributor by commit count)
-result = df.groupby('name').size().sort_values(ascending=False).head(1).reset_index(name='commit_count')
-
-"Show me development activity" (commits per week last 3 months)
-df['week'] = pd.to_datetime(df['date']).dt.to_period('W')
-result = df[df['date'] >= pd.Timestamp.now(tz='UTC') - pd.DateOffset(months=3)].groupby('week').size().reset_index(name='commits')
-
-Now generate pandas code for the query "{query}". Return ONLY the code, nothing else:"""
+Now generate pandas code for: "{query}"
+Return ONLY executable code:"""
 
         try:
             # Call LLM to generate code using configured model
@@ -491,6 +480,9 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
                     generated_code = match.group(1).strip()
 
             logger.info(f"Generated pandas code:\n{generated_code}")
+
+            # Store the generated code for retrieval
+            self.last_generated_code = generated_code
 
             # Safety check: validate the code
             if not self._is_safe_pandas_code(generated_code):
@@ -616,8 +608,9 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
 
         elif query_type == "top_contributors":
             # Top contributors by commit count
+            # IMPORTANT: Use nunique() to count unique commits, not rows (which are per-file)
             contributors = df.groupby(['name', 'email']).agg({
-                'commit_sha': 'count',
+                'commit_sha': 'nunique',  # Count unique commits, not file changes
                 'lines_added': 'sum',
                 'lines_deleted': 'sum'
             }).rename(columns={'commit_sha': 'commit_count'})
@@ -628,7 +621,8 @@ Now generate pandas code for the query "{query}". Return ONLY the code, nothing 
 
         elif query_type == "stats":
             # Overall statistics
-            total_commits = len(df)
+            # IMPORTANT: Count unique commits, not rows (which are per-file)
+            total_commits = df['commit_sha'].nunique()
             unique_authors = df['email'].nunique()
             total_files = df['filename'].nunique()
             date_range = f"{df['date'].min()} to {df['date'].max()}"

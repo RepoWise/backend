@@ -38,7 +38,7 @@ processed_repo_data_lock = asyncio.Lock()
 doc_extractor = ProjectDocExtractor()
 rag_engine = RAGEngine()
 llm_client = LLMClient()
-# Use keyword-based intent classification (single-keyword approach, 67.8% accuracy)
+# Intent classification using LLM Few-Shot Chain of Thought (CoT) - default mode
 intent_router = IntentRouter(llm_client=llm_client, use_llm_classification=False)
 csv_engine = CSVDataEngine(llm_client=llm_client)
 question_suggester = QuestionSuggester()
@@ -118,7 +118,7 @@ class QueryRequest(BaseModel):
     stream: bool = False
     conversation_history: Optional[List[ConversationMessage]] = None  # Legacy: full history
     conversation_state: Optional[ConversationState] = None  # New: running summary
-    use_llm_classification: bool = False  # Use keyword-based intent classification
+    use_llm_classification: bool = False  # When True: use simple LLM mode; When False (default): use CoT mode
 
 
 class SearchRequest(BaseModel):
@@ -734,15 +734,9 @@ async def query_project_docs(request: QueryRequest):
     """
     logger.info(f"Query request: '{request.query}' | Project: {request.project_id} | LLM mode: {request.use_llm_classification}")
 
-    # Step 1: Classify intent
+    # Step 1: Classify intent using LLM Few-Shot Chain of Thought (CoT)
     has_project_context = request.project_id is not None
-    if request.use_llm_classification:
-        # Use global LLM-based router (default, 97.8% accuracy)
-        intent, confidence = intent_router.classify_intent(request.query, has_project_context)
-    else:
-        # Create keyword-based router for comparison/testing only
-        keyword_router = IntentRouter(llm_client=llm_client, use_llm_classification=False)
-        intent, confidence = keyword_router.classify_intent(request.query, has_project_context)
+    intent, confidence = intent_router.classify_intent(request.query, has_project_context)
 
     logger.info(f"🎯 Intent: {intent} (confidence: {confidence:.2f})")
 
@@ -1013,7 +1007,7 @@ async def query_project_docs(request: QueryRequest):
                     query=request.query,
                     response=f"No {data_type} data found matching your query.",
                     sources=[],
-                    metadata={"intent": intent, "data_source": "csv"},
+                    metadata={"intent": intent, "data_source": "csv", "pandas_query": getattr(csv_engine, 'last_generated_code', '')},
                     suggested_questions=suggested_questions,
                 )
 
@@ -1067,7 +1061,8 @@ async def query_project_docs(request: QueryRequest):
                             "intent": intent,
                             "data_source": "csv",
                             "query_type": "aggregation",
-                            "stats": first_record
+                            "stats": first_record,
+                            "pandas_query": getattr(csv_engine, 'last_generated_code', '')
                         },
                         suggested_questions=suggested_questions,
                         conversation_state=updated_state,
@@ -1113,7 +1108,8 @@ async def query_project_docs(request: QueryRequest):
                             "intent": intent,
                             "data_source": "csv",
                             "query_type": "aggregation",
-                            "stats": first_record
+                            "stats": first_record,
+                            "pandas_query": getattr(csv_engine, 'last_generated_code', '')
                         },
                         suggested_questions=suggested_questions,
                         conversation_state=updated_state,
@@ -1160,6 +1156,9 @@ async def query_project_docs(request: QueryRequest):
                 project_context={"project_name": project["name"], "project_id": request.project_id}
             )
 
+            # Get the generated pandas code if available
+            generated_pandas_code = getattr(csv_engine, 'last_generated_code', '')
+
             return QueryResponse(
                 project_id=request.project_id,
                 query=request.query,
@@ -1172,6 +1171,7 @@ async def query_project_docs(request: QueryRequest):
                     "records_found": len(records),
                     "llm_model": llm_response.get("model"),
                     "generation_time_ms": llm_response.get("total_duration_ms"),
+                    "pandas_query": generated_pandas_code,
                 },
                 suggested_questions=suggested_questions,
                 conversation_state=updated_state,
