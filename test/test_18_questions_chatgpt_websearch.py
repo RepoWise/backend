@@ -40,14 +40,14 @@ TEST_QUESTIONS = [
     {"number": 10, "question": "Who are the top 10 contributors in the past 6 months?", "category": "COMMITS"},
     {"number": 11, "question": "Rank top five files have been modified the most?", "category": "COMMITS"},
     {"number": 12, "question": "How many unique contributors are there?", "category": "COMMITS"},
-    {"number": 13, "question": "Who are the most active contributors?", "category": "COMMITS"},
-    {"number": 14, "question": "Who contributed to the documentation?", "category": "COMMITS"},
+    {"number": 13, "question": "Who is the most active contributor?", "category": "COMMITS"},
+    {"number": 14, "question": "Which author contributed the most to the documentation (MD files)?", "category": "COMMITS"},
 
     # ISSUES (4 questions)
-    {"number": 15, "question": "What are the most commented issues?", "category": "ISSUES"},
-    {"number": 16, "question": "Who are the most active issue reporters?", "category": "ISSUES"},
-    {"number": 17, "question": "What are the oldest open issues?", "category": "ISSUES"},
-    {"number": 18, "question": "How quickly are issues being closed?", "category": "ISSUES"},
+    {"number": 15, "question": "Which is the most commented issue?", "category": "ISSUES"},
+    {"number": 16, "question": "Who is the most active issue reporter?", "category": "ISSUES"},
+    {"number": 17, "question": "Which one is the oldest open issue?", "category": "ISSUES"},
+    {"number": 18, "question": "What's the issue resolution time?", "category": "ISSUES"},
 ]
 
 
