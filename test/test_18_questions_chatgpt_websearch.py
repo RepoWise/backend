@@ -55,11 +55,8 @@ def query_chatgpt_with_websearch(repo_name: str, question: str, client: OpenAI) 
     """Query ChatGPT API with web search enabled."""
     repo_url = f"https://github.com/{repo_name}"
 
-    # Enhanced prompt that encourages web search usage
-    user_prompt = f"""For the GitHub repository {repo_name} ({repo_url}), answer this question: "{question}"
-
-Please search the web to find accurate, up-to-date information from the actual GitHub repository.
-Look at the repository's README, CONTRIBUTING.md, commit history, issues, and other relevant files."""
+    # Same prompt as non-web-search version for fair comparison
+    user_prompt = f'For this repo {repo_name} ({repo_url}), answer this question - "{question}"'
 
     try:
         start_time = time.time()
