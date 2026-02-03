@@ -128,6 +128,17 @@ class SearchRequest(BaseModel):
     file_types: Optional[List[str]] = None
 
 
+class ClassifyIntentRequest(BaseModel):
+    """Request model for fast intent classification endpoint"""
+    query: str
+
+
+class ClassifyIntentResponse(BaseModel):
+    """Response model for intent classification"""
+    intent: str
+    confidence: float
+
+
 class AddRepositoryRequest(BaseModel):
     github_url: str
 
@@ -719,6 +730,41 @@ async def crawl_governance(project_id: str, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Error in crawl_governance: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/classify-intent", response_model=ClassifyIntentResponse)
+async def classify_intent_endpoint(request: ClassifyIntentRequest):
+    """
+    Fast Intent Classification Endpoint
+
+    Lightweight endpoint that only classifies the query intent without
+    performing RAG retrieval or response generation. Used by frontend
+    to display appropriate loading messages while the full query executes.
+
+    Returns:
+        intent: One of PROJECT_DOC_BASED, COMMITS, ISSUES, GENERAL, OUT_OF_SCOPE
+        confidence: Classification confidence score (0-1)
+    """
+    logger.info(f"Intent classification request: '{request.query}'")
+
+    try:
+        # Classify intent using the intent router (fast operation)
+        intent, confidence = intent_router.classify_intent(request.query, has_project_context=True)
+
+        logger.info(f"🎯 Classified intent: {intent} (confidence: {confidence:.2f})")
+
+        return ClassifyIntentResponse(
+            intent=intent,
+            confidence=confidence
+        )
+
+    except Exception as e:
+        logger.error(f"Error in classify_intent: {e}")
+        # Return a default intent on error to not break the frontend
+        return ClassifyIntentResponse(
+            intent="PROJECT_DOC_BASED",
+            confidence=0.5
+        )
 
 
 @router.post("/query", response_model=QueryResponse)
