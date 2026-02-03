@@ -59,10 +59,15 @@ class IntentRouter:
 
     # Keywords for each intent type
     PROJECT_DOC_BASED_KEYWORDS = {
-        "maintainer", "maintains", "maintained", "contribute", "contributing", "governance",
+        "maintainer", "maintainers", "maintains", "maintained", "contribute", "contributing", "governance",
         "code of conduct", "coc", "license", "security", "policy", "guideline",
         "community", "decision", "voting", "leadership", "structure", "role",
-        "responsibility", "contact", "reporting", "process", "required", "rules"
+        "responsibility", "contact", "reporting", "process", "required", "rules",
+        # Code review and approval process keywords
+        "review", "reviewer", "reviews",
+        "merge", "merging",
+        "permission", "permissions", "access",
+        "approval", "approver", "approve"
     }
 
     COMMITS_KEYWORDS = {
@@ -70,7 +75,14 @@ class IntentRouter:
         "author", "file changed", "lines added", "lines deleted",
         "recent commit", "latest commit", "modification",
         "who changed", "when changed", "changelog", "most active", "top contributor",
-        "files did", "which files", "modified the most", "files have been"
+        "files did", "which files", "modified the most", "files have been",
+        # Pull request data and contributor actions
+        "pull request", "pull requests",
+        "who fixed", "fixed the most", "fixed most",
+        "who wrote", "who modified",
+        # Core developers and active contributors (statistical, commit-based)
+        "core developer", "core developers", "active developer", "active developers",
+        "key developer", "key developers", "main developer", "main developers"
     }
 
     ISSUES_KEYWORDS = {
@@ -116,8 +128,8 @@ class IntentRouter:
         "sports", "game", "score", "match", "tournament", "championship",
         "team", "player", "football", "basketball", "baseball", "soccer",
 
-        # Entertainment
-        "movie", "film", "show", "actor", "actress", "celebrity", "tv show",
+        # Entertainment (removed standalone "show" - too broad, matches "show me...")
+        "movie", "film", "actor", "actress", "celebrity", "tv show",
         "netflix", "series", "episode", "watching",
 
         # General knowledge (non-technical)
@@ -125,17 +137,33 @@ class IntentRouter:
         "tallest mountain", "deepest ocean"
     }
 
-    def __init__(self, llm_client=None, use_llm_classification=False):
+    def __init__(self, llm_client=None, use_llm_classification=False, classification_mode="cot"):
         """
         Initialize intent router
 
         Args:
             llm_client: Optional LLM client for advanced classification
-            use_llm_classification: If True, use LLM for primary classification; if False, use keyword-based
+            use_llm_classification: (Deprecated) If True, forces "llm" mode; if False, uses classification_mode
+            classification_mode: Classification method to use (default: "cot"):
+                                - "keyword": Rule-based keyword matching (fast, no LLM)
+                                - "llm": Simple LLM classification (legacy)
+                                - "cot": Chain of Thought with few-shot examples (recommended, default)
         """
         self.llm_client = llm_client
         self.use_llm_classification = use_llm_classification
-        logger.info(f"Intent Router initialized (mode: {'LLM' if use_llm_classification else 'keyword-based'})")
+
+        # Handle classification mode
+        if use_llm_classification:
+            self.classification_mode = "llm"
+        else:
+            self.classification_mode = classification_mode
+
+        mode_names = {
+            "keyword": "keyword-based",
+            "llm": "LLM (simple)",
+            "cot": "Chain of Thought (CoT)"
+        }
+        logger.info(f"Intent Router initialized (mode: {mode_names.get(self.classification_mode, self.classification_mode)})")
 
     def is_aggregation_query(self, query: str) -> bool:
         """
@@ -193,6 +221,8 @@ Examples:
 **COMMITS**: Questions about commit history, code changes, file modifications, contributors, authorship, commit statistics, code activity, developer behavior patterns based on commits.
 Examples:
 - "Who are the top contributors by commit count?"
+- "Who are the core developers?" (statistical top contributors)
+- "Who is the core developer?" (top contributor)
 - "Which files have been modified the most?"
 - "Show me the latest commits"
 - "Who contributed to documentation?" (based on files changed)
@@ -425,7 +455,9 @@ Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
         # FALLBACK: HEURISTIC PATTERNS (no strong matches)
         # =================================================================
         if query_lower.startswith(("who ", "who's", "who are")):
-            if "maintain" in query_lower:
+            # Check governance/process context first (review process, permissions, etc.)
+            governance_terms = ["review", "merge", "permission", "approve", "approval", "access"]
+            if any(term in query_lower for term in governance_terms) or "maintain" in query_lower:
                 return "PROJECT_DOC_BASED", 0.65
             else:
                 return "COMMITS", 0.60
@@ -443,10 +475,251 @@ Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
             logger.info(f"🤷 No clear match, defaulting to GENERAL")
             return "GENERAL", 0.40
 
+    def classify_intent_cot(self, query: str, has_project_context: bool = True) -> Tuple[str, float]:
+        """
+        Chain of Thought (CoT) intent classification using LLM with few-shot examples.
+
+        This method uses structured prompting with examples to help the LLM reason
+        through the classification step-by-step, improving accuracy on ambiguous queries.
+
+        Note: Returns 1.0 as confidence since confidence scores are not used for
+        decision-making in the system. The value of CoT is in accurate classification
+        and explainable reasoning, not confidence estimation.
+
+        Args:
+            query: User query
+            has_project_context: Whether user has selected a project
+
+        Returns:
+            (intent_type, confidence) tuple where confidence is always 1.0
+        """
+        if not self.llm_client:
+            logger.warning("LLM client not available for CoT classification, falling back to keyword-based")
+            return self.classify_intent_keyword(query, has_project_context)
+
+        # If no project context, return GENERAL
+        if not has_project_context:
+            logger.info(f"🎯 CoT: No project context → GENERAL")
+            return "GENERAL", 1.0
+
+        # =================================================================
+        # HYBRID: Keyword-based OUT_OF_SCOPE detection (fast, before LLM)
+        # =================================================================
+        query_lower = query.lower().strip()
+
+        # Strip common greetings from the beginning to extract the core query
+        greeting_prefixes = ["hello", "hi there", "hey", "good morning", "good afternoon", "hi"]
+        cleaned_query = query_lower
+
+        for greeting in greeting_prefixes:
+            if cleaned_query.startswith(greeting):
+                # Remove greeting and any following comma/punctuation
+                cleaned_query = cleaned_query[len(greeting):].lstrip(" ,!.")
+                break
+
+        # If after removing greeting, there's substantial content, it's NOT out of scope
+        if cleaned_query != query_lower:  # Greeting was removed
+            word_count = len(cleaned_query.split())
+            has_substance = word_count >= 5 or any(kw in cleaned_query for kw in
+                list(self.PROJECT_DOC_BASED_KEYWORDS) + list(self.COMMITS_KEYWORDS) + list(self.ISSUES_KEYWORDS))
+
+            if not has_substance:
+                # Just a greeting with no real question
+                logger.info(f"🎯 CoT Hybrid: Pure greeting detected → OUT_OF_SCOPE (keyword)")
+                return "OUT_OF_SCOPE", 1.0
+        else:
+            # No greeting detected, check for other out-of-scope patterns
+            if any(pattern in query_lower for pattern in self.OUT_OF_SCOPE_PATTERNS):
+                logger.info(f"🎯 CoT Hybrid: Out-of-scope pattern detected → OUT_OF_SCOPE (keyword)")
+                return "OUT_OF_SCOPE", 1.0
+
+        # =================================================================
+        # If not OUT_OF_SCOPE, proceed with LLM-based CoT classification
+        # =================================================================
+
+        # Few-Shot Chain of Thought Prompt
+        cot_prompt = """You are an intent classifier for a GitHub repository Q&A system.
+
+TASK: Classify the user query into exactly ONE category. Think step-by-step about what information is needed and where it would be found.
+
+CATEGORIES:
+- PROJECT_DOC_BASED: Questions about governance, contribution guidelines, maintainers, licenses, policies, code of conduct, how to contribute, project structure, review process
+- COMMITS: Questions about commit history, contributors by code/commits, file modifications, development activity, who wrote/modified code, core developers (by contribution)
+- ISSUES: Questions about bug reports, feature requests, issue reporters, open/closed issues, issue comments, issue statistics
+- GENERAL: Generic programming questions not specific to this repository
+- OUT_OF_SCOPE: Greetings, off-topic queries, questions about the assistant itself
+
+EXAMPLES WITH REASONING:
+
+Query: "How do I contribute to this project?"
+Reasoning: This asks about the contribution PROCESS - what steps to follow, guidelines to read. This information is in CONTRIBUTING.md or governance docs. Not asking for commit statistics.
+Intent: PROJECT_DOC_BASED
+
+Query: "Who are the top 5 contributors?"
+Reasoning: "Top contributors" implies ranking by measurable activity like commit count. This requires analyzing commit history data, not reading governance docs.
+Intent: COMMITS
+
+Query: "Who are the core developers?"
+Reasoning: "Core developers" typically means the most active contributors by code contribution. This is determined by commit statistics (who has the most commits), not governance documents which list maintainers.
+Intent: COMMITS
+
+Query: "Who maintains this project?"
+Reasoning: "Maintainers" are explicitly defined roles documented in MAINTAINERS.md, CODEOWNERS, or governance docs. This is asking about documented roles, not commit statistics.
+Intent: PROJECT_DOC_BASED
+
+Query: "How many issues are open?"
+Reasoning: This asks for a COUNT of open issues, which requires querying issue tracking data, not documentation.
+Intent: ISSUES
+
+Query: "Who contributed to the documentation?"
+Reasoning: "Contributed to documentation" means who made COMMITS to documentation files. This requires analyzing commit history filtered by doc files, not reading the docs themselves.
+Intent: COMMITS
+
+Query: "What is the code of conduct?"
+Reasoning: Code of conduct is a governance document (CODE_OF_CONDUCT.md). This asks about project policies.
+Intent: PROJECT_DOC_BASED
+
+Query: "Who raises the most issues?"
+Reasoning: This asks about issue REPORTERS ranked by count. Requires analyzing issue data to find who filed the most issues.
+Intent: ISSUES
+
+Query: "What license does this project use?"
+Reasoning: License information is in the LICENSE file, a project document. Not asking for statistics.
+Intent: PROJECT_DOC_BASED
+
+Query: "Show me the latest commits"
+Reasoning: This explicitly asks for commit data - recent commits from the repository history.
+Intent: COMMITS
+
+Query: "How are major decisions made in this project?"
+Reasoning: Decision-making process is a governance topic documented in GOVERNANCE.md or similar. Not asking for data/statistics.
+Intent: PROJECT_DOC_BASED
+
+Query: "What are the most commented issues?"
+Reasoning: This asks for issues ranked by comment count, requiring analysis of issue data.
+Intent: ISSUES
+
+Query: "Hello"
+Reasoning: This is just a greeting with no substantive question. It doesn't ask for any information about the repository, code, or programming concepts.
+Intent: OUT_OF_SCOPE
+
+Query: "Who are you?"
+Reasoning: This is asking about the assistant itself, not about the repository. Questions about the chatbot's identity are out of scope.
+Intent: OUT_OF_SCOPE
+
+Query: "What can you do?"
+Reasoning: This asks about the assistant's capabilities, not about the repository. Meta-questions about the assistant are out of scope.
+Intent: OUT_OF_SCOPE
+
+Query: "What is the capital of France?"
+Reasoning: This is a geography question completely unrelated to software development or this repository. Off-topic questions are out of scope.
+Intent: OUT_OF_SCOPE
+
+Query: "What is the weather today?"
+Reasoning: Weather queries have nothing to do with software repositories. Completely unrelated topics are out of scope.
+Intent: OUT_OF_SCOPE
+
+Query: "Tell me a joke"
+Reasoning: Entertainment requests are not related to the repository or programming. This is out of scope.
+Intent: OUT_OF_SCOPE
+
+Query: "What is machine learning?"
+Reasoning: This is a generic programming/ML concept question. It's asking for educational information about a tech topic, but not specific to this repository. It's a valid programming question that could be answered without repository context.
+Intent: GENERAL
+
+Query: "How does Git work?"
+Reasoning: This asks about Git version control in general, not about how this specific repository uses Git. It's a generic programming/tech question.
+Intent: GENERAL
+
+Query: "What is the difference between Git and GitHub?"
+Reasoning: This is asking about general software development concepts, not about this specific repository. It's educational but not project-specific.
+Intent: GENERAL
+
+Query: "Who are the core maintainers?"
+Reasoning: "Core maintainers" refers to documented leadership roles in the project. Unlike "core developers" (who are identified by commit activity), maintainers are explicitly listed in MAINTAINERS.md, CODEOWNERS, or governance documents.
+Intent: PROJECT_DOC_BASED
+
+Query: "What is open source software?"
+Reasoning: This is a generic educational question about the concept of open source. It's not asking about this specific repository or its data. It's a general programming/tech concept.
+Intent: GENERAL
+
+Query: "What is semantic versioning?"
+Reasoning: This asks about the general concept of semantic versioning (semver), not about this specific project's versioning. It's an educational question about software practices.
+Intent: GENERAL
+
+Query: "Explain the MIT license"
+Reasoning: This asks for a general explanation of what the MIT license is, not what license THIS project uses. It's asking about a general software concept.
+Intent: GENERAL
+
+Query: "Can you tell me how to run the test cases in the repo?"
+Reasoning: This asks about running tests in THIS specific repository. The testing instructions are documented in README.md or CONTRIBUTING.md. It's project-specific documentation.
+Intent: PROJECT_DOC_BASED
+
+Query: "What programming languages are used?"
+Reasoning: This asks about the languages used in THIS specific project. This information is found in the repository documentation or can be inferred from the codebase structure documented in README if provided there or from other docs available.
+Intent: PROJECT_DOC_BASED
+
+Query: "Are there any breaking changes?"
+Reasoning: This asks about documented breaking changes in release notes, CHANGELOG, or migration guides. It's asking about project documentation, not commit history analysis.
+Intent: PROJECT_DOC_BASED
+
+Now classify this query. Think step by step, then provide the intent.
+
+Query: "{query}"
+Reasoning:"""
+
+        try:
+            # Call LLM with CoT prompt
+            response = self.llm_client.generate_simple(
+                cot_prompt.format(query=query),
+                max_tokens=200,
+                temperature=0.0
+            )
+
+            response_text = response.strip()
+            logger.info(f"🧠 CoT Response:\n{response_text}")
+
+            # Parse the response to extract intent and reasoning
+            intent, reasoning = self._parse_cot_response(response_text)
+
+            logger.info(f"🎯 CoT Classification: {intent} | Reasoning: {reasoning[:100]}...")
+
+            return intent, 1.0  # Confidence is always 1.0 (not used for decisions)
+
+        except Exception as e:
+            logger.error(f"❌ CoT classification failed: {e}, falling back to keyword-based")
+            return self.classify_intent_keyword(query, has_project_context)
+
+    def _parse_cot_response(self, response: str) -> Tuple[str, str]:
+        """
+        Parse the Chain of Thought response to extract intent and reasoning.
+
+        Args:
+            response: Raw LLM response text
+
+        Returns:
+            (intent, reasoning) tuple
+        """
+        response_upper = response.upper()
+
+        # Extract reasoning (everything before "Intent:")
+        reasoning = response.split("Intent:")[0].strip() if "Intent:" in response else response
+
+        # Determine intent from response
+        valid_intents = ["PROJECT_DOC_BASED", "COMMITS", "ISSUES", "GENERAL", "OUT_OF_SCOPE"]
+        detected_intent = "GENERAL"  # default
+
+        for intent in valid_intents:
+            if intent in response_upper:
+                detected_intent = intent
+                break
+
+        return detected_intent, reasoning
+
     def classify_intent(self, query: str, has_project_context: bool = True) -> Tuple[str, float]:
         """
         Main entry point for intent classification
-        Routes to LLM-based or keyword-based classification based on configuration
+        Routes to appropriate classification method based on configuration
 
         Args:
             query: User query
@@ -455,7 +728,9 @@ Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
         Returns:
             (intent_type, confidence)
         """
-        if self.use_llm_classification:
+        if self.classification_mode == "cot":
+            return self.classify_intent_cot(query, has_project_context)
+        elif self.classification_mode == "llm" or self.use_llm_classification:
             return self.classify_intent_llm(query, has_project_context)
         else:
             return self.classify_intent_keyword(query, has_project_context)
@@ -473,15 +748,28 @@ Respond with ONLY ONE WORD: PROJECT_DOC_BASED, COMMITS, ISSUES, or GENERAL"""
             score: Float score based on match quality
             matched_keywords: List of keywords that matched
         """
+        import string
+
         count = 0
         matched = []
+
+        # Remove punctuation from text for better word boundary matching
+        text_clean = text.translate(str.maketrans('', '', string.punctuation))
+
         for keyword in keywords:
             if keyword in text:
                 matched.append(keyword)
-                # Exact word match scores higher
-                if f" {keyword} " in f" {text} " or text.startswith(keyword) or text.endswith(keyword):
+
+                # Check for exact word match with better boundary detection
+                # Use cleaned text (no punctuation) for word boundary checks
+                keyword_clean = keyword.translate(str.maketrans('', '', string.punctuation))
+
+                # Exact word match scores higher (1.5)
+                # Check word boundaries in cleaned text
+                if f" {keyword_clean} " in f" {text_clean} " or text_clean.startswith(keyword_clean) or text_clean.endswith(keyword_clean):
                     count += 1.5
                 else:
+                    # Partial match (0.5)
                     count += 0.5
         return count, matched
 
