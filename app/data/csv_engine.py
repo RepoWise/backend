@@ -211,6 +211,9 @@ class CSVDataEngine:
                     df['timestamp'] = df['date_time']
 
                 # Ensure required columns exist with default values
+                if 'filename' not in df.columns:
+                    df['filename'] = ''
+                    logger.warning(f"No 'filename' column found in commits data for {project_id}")
                 if 'lines_added' not in df.columns:
                     df['lines_added'] = 0
                 if 'lines_deleted' not in df.columns:
@@ -624,13 +627,21 @@ Return ONLY executable code:"""
             # IMPORTANT: Count unique commits, not rows (which are per-file)
             total_commits = df['commit_sha'].nunique()
             unique_authors = df['email'].nunique()
-            total_files = df['filename'].nunique()
+
+            # Count unique files, excluding empty/null values
+            if 'filename' in df.columns:
+                valid_filenames = df['filename'].dropna()
+                valid_filenames = valid_filenames[valid_filenames != '']
+                total_files = valid_filenames.nunique()
+            else:
+                total_files = None  # Indicates data not available
+
             date_range = f"{df['date'].min()} to {df['date'].max()}"
 
             stats = {
                 'total_commits': total_commits,
                 'unique_authors': unique_authors,
-                'total_files_changed': total_files,
+                'total_files_changed': total_files if total_files else 'N/A (file data not available)',
                 'date_range': date_range
             }
             result = pd.DataFrame([stats])
